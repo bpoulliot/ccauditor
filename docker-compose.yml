@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: ccauditor_app
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app/app
+    ports:
+      - "0:8501"
+    expose:
+      - "8501"
+    depends_on:
+      - postgres
+      - redis
+    command: streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    container_name: ccauditor_worker
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+    command: celery -A app.celery_app worker --loglevel=info
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    container_name: ccauditor_scheduler
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+    command: celery -A app.celery_app beat --loglevel=info
+
+  redis:
+    image: redis:7-alpine
+    container_name: ccauditor_redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: ccauditor_postgres
+    environment:
+      POSTGRES_USER: ccauditor
+      POSTGRES_PASSWORD: ccauditor
+      POSTGRES_DB: ccauditor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
