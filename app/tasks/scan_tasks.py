@@ -9,6 +9,11 @@ from app.canvas.client import get_courses
 from app.canvas.course_prioritizer import prioritize_courses
 
 from app.scanner.course_scanner import scan_course
+from app.progress.redis_progress import (
+    init_scan_progress,
+    increment_completed,
+    increment_failed,
+)
 
 from app.progress.redis_progress import (
     init_scan_progress,
@@ -41,9 +46,7 @@ def scan_term(term_id):
 
     db = SessionLocal()
 
-    job = ScanJob(term_id=term_id, status="running")
-    db.add(job)
-    db.commit()
+    try:
 
     # Fetch courses from Canvas
     canvas_courses = get_courses()
@@ -72,8 +75,16 @@ def scan_term(term_id):
 
         scan_course_task.delay(course["id"], term_id)
 
-    job.status = "queued"
-    db.commit()
+        increment_completed(term_id)
+
+    except Exception as exc:
+
+        increment_failed(term_id)
+
+        try:
+            raise self.retry(exc=exc, countdown=30)
+        except Retry:
+            raise
 
 
 @celery_app.task(bind=True, max_retries=3)
