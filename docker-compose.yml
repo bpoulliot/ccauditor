@@ -76,6 +76,12 @@ services:
 
     restart: unless-stopped
 
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.celery_app", "inspect", "ping"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+
 
 
   celery_hygiene:
@@ -95,6 +101,12 @@ services:
 
     restart: unless-stopped
 
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.celery_app", "inspect", "ping"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+
 
 
   celery_scheduler:
@@ -113,6 +125,12 @@ services:
         condition: service_healthy
 
     restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.celery_app", "inspect", "ping"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
 
 
 

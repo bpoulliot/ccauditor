@@ -1,6 +1,5 @@
 import time
 
-from celery import Celery
 from celery.exceptions import Retry
 
 from app.config.settings import settings
@@ -84,6 +83,8 @@ from app.observability.metrics import (
 )
 
 
+from app.celery_app import celery_app
+
 from app.progress.redis_progress import (
     init_scan_progress,
     increment_completed,
@@ -109,14 +110,6 @@ from app.observability.metrics import (
     DEPARTMENT_RISK_SCORE,
     DEPARTMENT_ACCESSIBILITY_ISSUES,
 )
-
-
-celery_app = Celery(
-    "ccauditor",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
-)
-
 
 celery_app.conf.update(
     task_time_limit=settings.CELERY_TASK_TIME_LIMIT,

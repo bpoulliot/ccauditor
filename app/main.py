@@ -5,8 +5,6 @@ from app.auth.auth import ensure_bootstrap_admin
 from app.auth.login import show_login
 from app.security.session_manager import validate_session
 
-from app.observability.metrics_server import start_metrics_server
-
 from app.ui.dashboard import show_dashboard
 from app.ui.hygiene_dashboard import show_hygiene_dashboard
 from app.ui.caption_dashboard import show_caption_dashboard
@@ -20,7 +18,6 @@ from app.observability.metrics_endpoint import show_metrics
 
 
 validate_environment()
-start_metrics_server()
 
 st.set_page_config(
     page_title="Canvas Accessibility Platform",
