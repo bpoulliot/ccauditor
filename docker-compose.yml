@@ -3,96 +3,193 @@ version: "3.9"
 services:
 
   app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+
+    build: .
     container_name: ccauditor_app
-    env_file:
-      - .env
-    volumes:
-      - ./app:/app/app
+
+    command: streamlit run app/main.py --server.port 8501 --server.address 0.0.0.0
+
     ports:
       - "49152:8501"
-    expose:
-      - "8501"
+
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://ccauditor:password@postgres:5432/ccauditor
+
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
-    command: streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0
+      postgres:
+        condition: service_healthy
+
+    restart: unless-stopped
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
-    restart: unless-stopped
 
-  worker:
-    build:
-      context: .
-      dockerfile: docker/worker.Dockerfile
-    container_name: ccauditor_worker
-    env_file:
-      - .env
+
+
+  celery_scans:
+
+    build: .
+    container_name: ccauditor_worker_scans
+
+    command: celery -A app.celery_app worker -Q scans --concurrency=10
+
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://ccauditor:password@postgres:5432/ccauditor
+
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
-    command: >
-      bash -c "python scripts/wait_for_dependencies.py &&
-               celery -A app.celery_app worker --loglevel=info"
+      postgres:
+        condition: service_healthy
+
+    restart: unless-stopped
+
     healthcheck:
       test: ["CMD", "celery", "-A", "app.celery_app", "inspect", "ping"]
-      interval: 30s
+      interval: 60s
       timeout: 10s
       retries: 5
-    restart: unless-stopped
 
-  scheduler:
-    build:
-      context: .
-      dockerfile: docker/worker.Dockerfile
-    container_name: ccauditor_scheduler
-    env_file:
-      - .env
+
+
+  celery_ai:
+
+    build: .
+    container_name: ccauditor_worker_ai
+
+    command: celery -A app.celery_app worker -Q ai --concurrency=2
+
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://ccauditor:password@postgres:5432/ccauditor
+
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
-    command: >
-      bash -c "python scripts/wait_for_dependencies.py &&
-               celery -A app.celery_app beat --loglevel=info"
+
     restart: unless-stopped
 
+
+
+  celery_hygiene:
+
+    build: .
+    container_name: ccauditor_worker_hygiene
+
+    command: celery -A app.celery_app worker -Q hygiene --concurrency=2
+
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://ccauditor:password@postgres:5432/ccauditor
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+
+
+  celery_scheduler:
+
+    build: .
+    container_name: ccauditor_scheduler
+
+    command: celery -A app.celery_app beat
+
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://ccauditor:password@postgres:5432/ccauditor
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+
+
   redis:
+
     image: redis:7-alpine
     container_name: ccauditor_redis
+
+    volumes:
+      - redis_data:/data
+
+    restart: unless-stopped
+
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 20s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+
+
 
   postgres:
+
     image: postgres:16
     container_name: ccauditor_postgres
+
     environment:
       POSTGRES_USER: ccauditor
-      POSTGRES_PASSWORD: ccauditor
+      POSTGRES_PASSWORD: password
       POSTGRES_DB: ccauditor
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ccauditor"]
       interval: 20s
       timeout: 5s
       retries: 5
+
+
+
+  prometheus:
+
+    image: prom/prometheus
+    container_name: ccauditor_prometheus
+
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+    ports:
+      - "9090:9090"
+
     restart: unless-stopped
 
+
+
+grafana:
+  image: grafana/grafana
+  container_name: ccauditor_grafana
+
+  ports:
+    - "3000:3000"
+
+  volumes:
+    - grafana_data:/var/lib/grafana
+    - ./grafana/dashboards:/var/lib/grafana/dashboards
+    - ./grafana/provisioning:/etc/grafana/provisioning
+
+  restart: unless-stopped
+
 volumes:
+
   postgres_data:
+
+  redis_data:
+
+  grafana_data:

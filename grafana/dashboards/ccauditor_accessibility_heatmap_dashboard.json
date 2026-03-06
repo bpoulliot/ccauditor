@@ -1,0 +1,109 @@
+{
+  "title": "CCAuditor Accessibility Heatmap",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+
+    {
+      "type": "heatmap",
+      "title": "Accessibility Risk Score Distribution",
+      "targets": [
+        {
+          "expr": "ccauditor_course_risk_score"
+        }
+      ]
+    },
+
+    {
+      "type": "heatmap",
+      "title": "WCAG Violations by Severity",
+      "targets": [
+        {
+          "expr": "sum by(severity) (ccauditor_accessibility_issues_total)"
+        }
+      ]
+    },
+
+    {
+      "type": "heatmap",
+      "title": "Caption Remediation Workload",
+      "targets": [
+        {
+          "expr": "ccauditor_caption_remediation_hours"
+        }
+      ]
+    },
+
+    {
+      "type": "heatmap",
+      "title": "Broken Links by Course",
+      "targets": [
+        {
+          "expr": "ccauditor_broken_links_total"
+        }
+      ]
+    },
+
+    {
+      "type": "heatmap",
+      "title": "Duplicate Content Detection",
+      "targets": [
+        {
+          "expr": "ccauditor_duplicate_content_total"
+        }
+      ]
+    },
+
+    {
+      "type": "heatmap",
+      "title": "File Accessibility Issues",
+      "targets": [
+        {
+          "expr": "ccauditor_file_accessibility_issues_total"
+        }
+      ]
+    },
+
+    {
+      "type": "heatmap",
+      "title": "Videos Missing Captions",
+      "targets": [
+        {
+          "expr": "ccauditor_videos_missing_captions_total"
+        }
+      ]
+    },
+
+    {
+      "type": "heatmap",
+      "title": "Caption Coverage by Course",
+      "targets": [
+        {
+          "expr": "ccauditor_videos_captioned_total / ccauditor_videos_total"
+        }
+      ]
+    },
+
+    {
+      "type": "heatmap",
+      "title": "Course Risk Heatmap",
+      "targets": [
+        {
+          "expr": "ccauditor_course_risk_score"
+        }
+      ]
+    },
+
+    {
+      "type": "graph",
+      "title": "Accessibility Issues Over Time",
+      "targets": [
+        {
+          "expr": "rate(ccauditor_accessibility_issues_total[5m])"
+        }
+      ]
+    }
+
+  ]
+}
