@@ -1,5 +1,4 @@
 import uuid
-import time
 import redis
 
 from app.config.settings import settings
@@ -14,10 +13,8 @@ def create_session(user_id):
 
     session_id = str(uuid.uuid4())
 
-    key = f"session:{session_id}"
-
     redis_client.set(
-        key,
+        f"session:{session_id}",
         user_id,
         ex=SESSION_TTL,
     )
@@ -27,21 +24,24 @@ def create_session(user_id):
 
 def validate_session(session_id):
 
-    key = f"session:{session_id}"
+    try:
 
-    user_id = redis_client.get(key)
+        key = f"session:{session_id}"
 
-    if not user_id:
+        user_id = redis_client.get(key)
+
+        if not user_id:
+            return False
+
+        redis_client.expire(key, SESSION_TTL)
+
+        return True
+
+    except Exception:
+
         return False
-
-    # refresh TTL on activity
-    redis_client.expire(key, SESSION_TTL)
-
-    return True
 
 
 def destroy_session(session_id):
 
-    key = f"session:{session_id}"
-
-    redis_client.delete(key)
+    redis_client.delete(f"session:{session_id}")

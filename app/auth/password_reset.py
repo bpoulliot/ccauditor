@@ -1,10 +1,10 @@
 import secrets
-import time
+import redis
 
-from app.database.db import SessionLocal
-from app.database.models import User
+from app.config.settings import settings
 
-RESET_TOKENS = {}
+
+redis_client = redis.Redis.from_url(settings.REDIS_URL)
 
 TOKEN_EXPIRATION = 3600
 
@@ -13,30 +13,25 @@ def generate_reset_token(username):
 
     token = secrets.token_urlsafe(32)
 
-    RESET_TOKENS[token] = {
-        "username": username,
-        "created": time.time(),
-    }
+    redis_client.set(
+        f"reset_token:{token}",
+        username,
+        ex=TOKEN_EXPIRATION,
+    )
 
     return token
 
 
 def validate_reset_token(token):
 
-    record = RESET_TOKENS.get(token)
+    username = redis_client.get(f"reset_token:{token}")
 
-    if not record:
+    if not username:
         return None
 
-    if time.time() - record["created"] > TOKEN_EXPIRATION:
-
-        del RESET_TOKENS[token]
-        return None
-
-    return record["username"]
+    return username.decode()
 
 
 def consume_token(token):
 
-    if token in RESET_TOKENS:
-        del RESET_TOKENS[token]
+    redis_client.delete(f"reset_token:{token}")
