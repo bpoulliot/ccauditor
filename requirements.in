@@ -16,3 +16,4 @@ python-docx
 python-pptx
 pdfminer.six
 numpy
+prometheus-client
