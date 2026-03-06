@@ -17,5 +17,15 @@ class Settings:
 
     LOG_DESTINATION = os.getenv("LOG_DESTINATION", "stdout")
 
+    AI_PROVIDER = os.getenv("AI_PROVIDER", "ollama")
+    AI_MODEL = os.getenv("AI_MODEL", "llama3")
+
+    OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+
 
 settings = Settings()
