@@ -1,0 +1,36 @@
+{
+  "title": "Executive Accessibility Overview",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Courses Scanned",
+      "targets": [
+        { "expr": "ccauditor_course_scans_total" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Average Accessibility Risk Score",
+      "targets": [
+        { "expr": "avg(ccauditor_course_risk_score)" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Caption Remediation Hours",
+      "targets": [
+        { "expr": "sum(ccauditor_caption_remediation_hours)" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Accessibility Issues Trend",
+      "targets": [
+        { "expr": "rate(ccauditor_accessibility_issues_total[5m])" }
+      ]
+    }
+  ]
+}

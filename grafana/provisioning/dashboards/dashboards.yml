@@ -1,11 +1,24 @@
 apiVersion: 1
 
 providers:
-  - name: "ccauditor-dashboards"
+
+  - name: operations
     orgId: 1
-    folder: "CCAuditor"
+    folder: Operations
     type: file
-    disableDeletion: false
-    editable: true
     options:
-      path: /var/lib/grafana/dashboards
+      path: /var/lib/grafana/dashboards/operations
+
+  - name: analytics
+    orgId: 1
+    folder: Accessibility Analytics
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards/analytics
+
+  - name: executive
+    orgId: 1
+    folder: Executive Reporting
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards/executive

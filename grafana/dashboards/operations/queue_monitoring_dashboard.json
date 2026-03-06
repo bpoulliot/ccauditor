@@ -1,0 +1,29 @@
+{
+  "title": "Queue Monitoring",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Scan Queue Depth",
+      "targets": [
+        { "expr": "redis_queue_length{queue=\"scans\"}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "AI Queue Depth",
+      "targets": [
+        { "expr": "redis_queue_length{queue=\"ai\"}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Hygiene Queue Depth",
+      "targets": [
+        { "expr": "redis_queue_length{queue=\"hygiene\"}" }
+      ]
+    }
+  ]
+}

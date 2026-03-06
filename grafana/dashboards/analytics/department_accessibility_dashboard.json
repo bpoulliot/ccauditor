@@ -1,0 +1,29 @@
+{
+  "title": "Department Accessibility",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Department Risk Scores",
+      "targets": [
+        { "expr": "avg by(department) (ccauditor_department_risk_score)" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Accessibility Issues by Department",
+      "targets": [
+        { "expr": "sum by(department) (ccauditor_department_accessibility_issues_total)" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Caption Backlog by Department",
+      "targets": [
+        { "expr": "ccauditor_department_caption_backlog_hours" }
+      ]
+    }
+  ]
+}

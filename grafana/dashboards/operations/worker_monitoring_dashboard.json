@@ -1,0 +1,22 @@
+{
+  "title": "Worker Monitoring",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Active Celery Workers",
+      "targets": [
+        { "expr": "celery_workers_active" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Worker Activity",
+      "targets": [
+        { "expr": "rate(ccauditor_course_scans_total[5m])" }
+      ]
+    }
+  ]
+}

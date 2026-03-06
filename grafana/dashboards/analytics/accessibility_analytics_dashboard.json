@@ -1,0 +1,29 @@
+{
+  "title": "Accessibility Analytics",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Accessibility Issues by Type",
+      "targets": [
+        { "expr": "sum by(issue_type) (ccauditor_accessibility_issues_total)" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Broken Links",
+      "targets": [
+        { "expr": "ccauditor_broken_links_total" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Duplicate Content",
+      "targets": [
+        { "expr": "ccauditor_duplicate_content_total" }
+      ]
+    }
+  ]
+}
