@@ -12,13 +12,22 @@ services:
     volumes:
       - ./app:/app/app
     ports:
-      - "0:8501"
+      - "49152:8501"
     expose:
       - "8501"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
   worker:
     build:
@@ -28,9 +37,19 @@ services:
     env_file:
       - .env
     depends_on:
-      - redis
-      - postgres
-    command: celery -A app.celery_app worker --loglevel=info
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      bash -c "python scripts/wait_for_dependencies.py &&
+               celery -A app.celery_app worker --loglevel=info"
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.celery_app", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   scheduler:
     build:
@@ -40,13 +59,23 @@ services:
     env_file:
       - .env
     depends_on:
-      - redis
-      - postgres
-    command: celery -A app.celery_app beat --loglevel=info
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      bash -c "python scripts/wait_for_dependencies.py &&
+               celery -A app.celery_app beat --loglevel=info"
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     container_name: ccauditor_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   postgres:
@@ -58,6 +87,11 @@ services:
       POSTGRES_DB: ccauditor
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ccauditor"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:
