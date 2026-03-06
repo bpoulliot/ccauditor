@@ -14,5 +14,5 @@ pip install pip-tools
 
 echo "Bootstrap complete."
 
-echo "Next steps:"
+echo "Run:"
 echo "docker compose up --build"
