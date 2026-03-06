@@ -5,10 +5,20 @@ from app.scanner.link_checker import check_links
 from app.scanner.caption_estimator import estimate_caption_workload
 from app.accessibility.rule_engine import evaluate_rules
 from app.detection.outdated_term_detector import detect_outdated_terms
+from app.optimization.incremental_scanner import should_scan_course
 
 
 def scan_course(course_id):
 
+    if not should_scan_course(course_id):
+    return {
+        "issues": [],
+        "links": [],
+        "videos": [],
+        "caption_workload": {},
+        "risk_score": 0,
+    }
+    
     course = canvas.get_course(course_id)
 
     pages = list(course.get_pages())
