@@ -12,3 +12,6 @@ pgvector
 openai
 anthropic
 beautifulsoup4
+python-docx
+python-pptx
+pdfminer.six
