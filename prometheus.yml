@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+
+  - job_name: "ccauditor"
+
+    static_configs:
+
+      - targets:
+          - "streamlit_app:8000"
