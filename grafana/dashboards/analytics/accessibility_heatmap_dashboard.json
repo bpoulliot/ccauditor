@@ -1,0 +1,22 @@
+{
+  "title": "Accessibility Heatmap",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "heatmap",
+      "title": "Course Risk Score Distribution",
+      "targets": [
+        { "expr": "ccauditor_course_risk_score" }
+      ]
+    },
+    {
+      "type": "heatmap",
+      "title": "Caption Remediation Hours",
+      "targets": [
+        { "expr": "ccauditor_caption_remediation_hours" }
+      ]
+    }
+  ]
+}
