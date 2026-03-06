@@ -1,28 +1,32 @@
 import streamlit as st
 from app.tasks.scan_tasks import scan_term
-from app.services.scan_service import queue_course_scan
+from app.progress.progress_service import calculate_progress
 
 
 def show_scan_controls():
 
     st.title("Course Scanner")
 
-    st.subheader("Scan an Entire Term")
-
     term_id = st.number_input("Canvas Term ID")
 
     if st.button("Start Term Scan"):
 
-        scan_term.delay(term_id)
+        courses = []  # will be fetched via Canvas API
 
-        st.success("Scan queued.")
+        scan_term.delay(term_id, courses)
 
-    st.subheader("Scan Individual Course")
+        st.success("Scan started.")
 
-    course_id = st.number_input("Course ID")
+    st.subheader("Scan Progress")
 
-    if st.button("Scan Course"):
+    progress_data = calculate_progress(term_id)
 
-        queue_course_scan(course_id)
+    if progress_data:
 
-        st.success("Course scan queued.")
+        st.progress(progress_data["progress"])
+
+        st.write(
+            f"Completed: {progress_data['completed']} / {progress_data['total']}"
+        )
+
+        st.write(f"Failed: {progress_data['failed']}")
