@@ -24,6 +24,15 @@ from app.progress.redis_progress import (
 from app.optimization.incremental_scanner import should_scan_course
 
 
+from app.progress.redis_progress import (
+    init_scan_progress,
+    increment_completed,
+    increment_failed,
+)
+
+from app.optimization.incremental_scanner import should_scan_course
+
+
 celery_app = Celery(
     "ccauditor",
     broker=settings.REDIS_URL,
@@ -67,6 +76,25 @@ def scan_term(term_id):
     # Prioritize courses by risk signals
     courses = prioritize_courses(courses)
 
+    # Fetch courses from Canvas
+    canvas_courses = get_courses()
+
+    courses = []
+
+    for course in canvas_courses:
+
+        if course.enrollment_term_id == term_id:
+
+            courses.append({
+                "id": course.id,
+                "video_count": 0,
+                "file_count": 0,
+                "page_count": 0,
+            })
+
+    # Prioritize courses by risk signals
+    courses = prioritize_courses(courses)
+
     total_courses = len(courses)
 
     init_scan_progress(term_id, total_courses)
@@ -75,17 +103,9 @@ def scan_term(term_id):
 
         scan_course_task.delay(course["id"], term_id)
 
+        scan_course_task.delay(course["id"], term_id)
+
         increment_completed(term_id)
-
-    except Exception as exc:
-
-        increment_failed(term_id)
-
-        try:
-            raise self.retry(exc=exc, countdown=30)
-        except Retry:
-            raise
-
 
 @celery_app.task(bind=True, max_retries=3)
 def scan_course_task(self, course_id, term_id):

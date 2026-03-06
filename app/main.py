@@ -1,6 +1,10 @@
 import streamlit as st
 
+from app.security.env_validation import validate_environment
 from app.auth.auth import ensure_bootstrap_admin
+from app.auth.login import show_login
+from app.security.session_manager import validate_session
+
 from app.ui.dashboard import show_dashboard
 from app.ui.hygiene_dashboard import show_hygiene_dashboard
 from app.ui.caption_dashboard import show_caption_dashboard
@@ -8,14 +12,54 @@ from app.ui.scan_controls import show_scan_controls
 from app.ui.user_management import show_user_management
 from app.ui.settings_page import show_settings
 
-st.set_page_config(page_title="Canvas Accessibility Platform", layout="wide")
+
+# --------------------------------------------------
+# Environment Validation
+# --------------------------------------------------
+
+validate_environment()
+
+
+# --------------------------------------------------
+# Streamlit Configuration
+# --------------------------------------------------
+
+st.set_page_config(
+    page_title="Canvas Accessibility Platform",
+    layout="wide",
+)
+
+
+# --------------------------------------------------
+# Bootstrap Admin Initialization
+# --------------------------------------------------
 
 ensure_bootstrap_admin()
 
-st.sidebar.title("Navigation")
+
+# --------------------------------------------------
+# Authentication Gate
+# --------------------------------------------------
+
+if "session_id" not in st.session_state:
+
+    show_login()
+    st.stop()
+
+if not validate_session(st.session_state["session_id"]):
+
+    show_login()
+    st.stop()
+
+
+# --------------------------------------------------
+# Sidebar Navigation
+# --------------------------------------------------
+
+st.sidebar.title("Canvas Accessibility Platform")
 
 page = st.sidebar.radio(
-    "Select Page",
+    "Navigation",
     [
         "Dashboard",
         "Content Hygiene",
@@ -25,6 +69,11 @@ page = st.sidebar.radio(
         "Settings",
     ],
 )
+
+
+# --------------------------------------------------
+# Page Routing
+# --------------------------------------------------
 
 if page == "Dashboard":
     show_dashboard()
@@ -43,3 +92,13 @@ elif page == "Users":
 
 elif page == "Settings":
     show_settings()
+
+
+# --------------------------------------------------
+# Logout
+# --------------------------------------------------
+
+if st.sidebar.button("Logout"):
+
+    st.session_state.clear()
+    st.experimental_rerun()
