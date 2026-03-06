@@ -181,6 +181,164 @@ prometheus/
 docker-compose.yml
 ```
 
+## Full Structure Diagram
+
+```
+ccauditor/
+│
+├── README.md
+├── LICENSE
+├── docker-compose.yml
+├── requirements.txt
+├── requirements.in
+├── .env.example
+│
+├── docker/
+│   ├── Dockerfile
+│   └── worker.Dockerfile
+│
+├── bootstrap.sh
+├── Makefile
+│
+├── prometheus/
+│   └── prometheus.yml
+│
+├── grafana/
+│   ├── dashboards/
+│   │
+│   │   ├── operations/
+│   │   │   ├── scan_monitoring_dashboard.json
+│   │   │   ├── worker_monitoring_dashboard.json
+│   │   │   └── queue_monitoring_dashboard.json
+│   │   │
+│   │   ├── analytics/
+│   │   │   ├── accessibility_analytics_dashboard.json
+│   │   │   ├── accessibility_heatmap_dashboard.json
+│   │   │   └── department_accessibility_dashboard.json
+│   │   │
+│   │   └── executive/
+│   │       └── executive_accessibility_dashboard.json
+│   │
+│   └── provisioning/
+│       ├── dashboards/
+│       │   └── dashboards.yml
+│       │
+│       └── datasources/
+│           └── datasource.yml
+│
+├── scripts/
+│   └── wait_for_dependencies.py
+│
+├── alembic/
+│   ├── env.py
+│   ├── script.py.mako
+│   │
+│   └── versions/
+│       └── 0001_initial_schema.py
+│
+├── alembic.ini
+│
+└── app/
+    │
+    ├── main.py
+    ├── celery_app.py
+    │
+    ├── config/
+    │   └── settings.py
+    │
+    ├── auth/
+    │   ├── auth.py
+    │   ├── login.py
+    │   ├── rbac.py
+    │   └── password_reset.py
+    │
+    ├── security/
+    │   ├── password_policy.py
+    │   ├── login_throttle.py
+    │   ├── csrf.py
+    │   ├── audit_logger.py
+    │   ├── env_validation.py
+    │   └── session_manager.py
+    │
+    ├── database/
+    │   ├── db.py
+    │   ├── models.py
+    │   └── init_db.py
+    │
+    ├── canvas/
+    │   ├── client.py
+    │   ├── pagination.py
+    │   ├── rate_limiter.py
+    │   └── course_prioritizer.py
+    │
+    ├── scanner/
+    │   ├── course_scanner.py
+    │   ├── html_analyzer.py
+    │   ├── link_checker.py
+    │   ├── video_detector.py
+    │   └── caption_estimator.py
+    │
+    ├── accessibility/
+    │   ├── rule_engine.py
+    │   └── remediation.py
+    │
+    ├── file_scanner/
+    │   ├── pdf_scanner.py
+    │   ├── docx_scanner.py
+    │   └── pptx_scanner.py
+    │
+    ├── detection/
+    │   ├── duplicate_detector.py
+    │   └── outdated_term_detector.py
+    │
+    ├── hygiene/
+    │   ├── hygiene_service.py
+    │   ├── file_analysis.py
+    │   └── question_bank_analysis.py
+    │
+    ├── ai/
+    │   ├── ai_client.py
+    │   ├── embedding_service.py
+    │   └── prompts.py
+    │
+    ├── analytics/
+    │   ├── dashboard_service.py
+    │   └── department.py
+    │
+    ├── optimization/
+    │   └── incremental_scanner.py
+    │
+    ├── progress/
+    │   ├── redis_progress.py
+    │   ├── progress_service.py
+    │   └── scan_lock.py
+    │
+    ├── observability/
+    │   ├── metrics.py
+    │   ├── metrics_server.py
+    │   ├── metrics_endpoint.py
+    │   └── structured_logging.py
+    │
+    ├── services/
+    │   └── scan_service.py
+    │
+    ├── tasks/
+    │   └── scan_tasks.py
+    │
+    ├── ui/
+    │   ├── dashboard.py
+    │   ├── hygiene_dashboard.py
+    │   ├── caption_dashboard.py
+    │   ├── scan_controls.py
+    │   ├── user_management.py
+    │   ├── password_reset_ui.py
+    │   ├── worker_dashboard.py
+    │   └── settings_page.py
+    │
+    └── utils/
+        └── logger.py
+```
+
 ---
 
 # Installation
