@@ -33,6 +33,15 @@ from app.progress.redis_progress import (
 from app.optimization.incremental_scanner import should_scan_course
 
 
+from app.progress.redis_progress import (
+    init_scan_progress,
+    increment_completed,
+    increment_failed,
+)
+
+from app.optimization.incremental_scanner import should_scan_course
+
+
 celery_app = Celery(
     "ccauditor",
     broker=settings.REDIS_URL,
@@ -105,7 +114,7 @@ def scan_term(term_id):
 
         scan_course_task.delay(course["id"], term_id)
 
-        increment_completed(term_id)
+        scan_course_task.delay(course["id"], term_id)
 
 @celery_app.task(bind=True, max_retries=3)
 def scan_course_task(self, course_id, term_id):
