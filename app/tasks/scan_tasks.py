@@ -1,8 +1,14 @@
 from celery import Celery
+from celery.exceptions import Retry
 from app.config.settings import settings
 from app.database.db import SessionLocal
-from app.database.models import CourseScan, ScanJob
+from app.database.models import CourseScan
 from app.scanner.course_scanner import scan_course
+from app.progress.redis_progress import (
+    init_scan_progress,
+    increment_completed,
+    increment_failed,
+)
 
 celery_app = Celery(
     "ccauditor",
@@ -10,32 +16,43 @@ celery_app = Celery(
     backend=settings.REDIS_URL,
 )
 
+
+@celery_app.task(bind=True, max_retries=3)
+def scan_course_task(self, course_id, term_id):
+
+    try:
+
+        db = SessionLocal()
+
+        result = scan_course(course_id)
+
+        scan = CourseScan(
+            course_id=course_id,
+            risk_score=result["risk_score"],
+        )
+
+        db.add(scan)
+        db.commit()
+
+        increment_completed(term_id)
+
+    except Exception as exc:
+
+        increment_failed(term_id)
+
+        try:
+            raise self.retry(exc=exc, countdown=30)
+        except Retry:
+            raise
+
+
 @celery_app.task
-def scan_term(term_id):
+def scan_term(term_id, courses):
 
-    db = SessionLocal()
+    total_courses = len(courses)
 
-    job = ScanJob(term_id=term_id, status="running")
-    db.add(job)
-    db.commit()
-
-    courses = []  # placeholder; will load via Canvas client
+    init_scan_progress(term_id, total_courses)
 
     for course in courses:
-        scan_course.delay(course.id)
 
-    job.status = "queued"
-    db.commit()
-
-
-@celery_app.task
-def scan_course_task(course_id):
-
-    db = SessionLocal()
-
-    result = scan_course(course_id)
-
-    scan = CourseScan(course_id=course_id, risk_score=result["risk_score"])
-
-    db.add(scan)
-    db.commit()
+        scan_course_task.delay(course["id"], term_id)
