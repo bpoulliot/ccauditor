@@ -4,6 +4,7 @@ from app.config.settings import settings
 from app.database.db import SessionLocal
 from app.database.models import CourseScan
 from app.scanner.course_scanner import scan_course
+from app.canvas.course_prioritizer import prioritize_courses
 from app.progress.redis_progress import (
     init_scan_progress,
     increment_completed,
@@ -48,6 +49,8 @@ def scan_course_task(self, course_id, term_id):
 
 @celery_app.task
 def scan_term(term_id, courses):
+
+    courses = prioritize_courses(courses)
 
     total_courses = len(courses)
 
