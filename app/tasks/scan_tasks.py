@@ -1,3 +1,4 @@
+import time
 from celery import Celery
 from celery.exceptions import Retry
 
@@ -16,7 +17,18 @@ from app.progress.redis_progress import (
     increment_failed,
 )
 
+from app.progress.scan_lock import (
+    acquire_term_lock,
+    release_term_lock,
+)
+
 from app.optimization.incremental_scanner import should_scan_course
+
+from app.observability.metrics import (
+    SCAN_COUNTER,
+    SCAN_DURATION,
+    SCAN_FAILURES,
+)
 
 
 celery_app = Celery(
@@ -32,71 +44,95 @@ celery_app.conf.update(
 )
 
 
-@celery_app.task
-def scan_term(term_id):
+@celery_app.task(bind=True)
+def scan_term(self, term_id):
+    """
+    Launch a full term scan with distributed job locking.
+    Prevents duplicate scans for the same term.
+    """
 
-    """
-    Launch a full term scan.
-    """
+    # Acquire distributed Redis lock
+    if not acquire_term_lock(term_id):
+        print(f"Scan already running for term {term_id}")
+        return
 
     db = SessionLocal()
 
-    job = ScanJob(term_id=term_id, status="running")
-    db.add(job)
-    db.commit()
+    try:
 
-    # Fetch courses from Canvas
-    canvas_courses = get_courses()
+        # Create job record
+        job = ScanJob(term_id=term_id, status="running")
+        db.add(job)
+        db.commit()
 
-    courses = []
+        canvas_courses = get_courses()
 
-    for course in canvas_courses:
+        courses = []
 
-        if course.enrollment_term_id == term_id:
+        for course in canvas_courses:
 
-            courses.append({
-                "id": course.id,
-                "video_count": 0,
-                "file_count": 0,
-                "page_count": 0,
-            })
+            if course.enrollment_term_id == term_id:
 
-    # Prioritize courses by risk signals
-    courses = prioritize_courses(courses)
+                courses.append(
+                    {
+                        "id": course.id,
+                        "video_count": 0,
+                        "file_count": 0,
+                        "page_count": 0,
+                    }
+                )
 
-    total_courses = len(courses)
+        # Prioritize high-risk courses first
+        courses = prioritize_courses(courses)
 
-    init_scan_progress(term_id, total_courses)
+        total_courses = len(courses)
 
-    for course in courses:
+        init_scan_progress(term_id, total_courses)
 
-        scan_course_task.delay(course["id"], term_id)
+        for course in courses:
 
-    job.status = "queued"
-    db.commit()
+            scan_course_task.delay(course["id"], term_id)
+
+        job.status = "queued"
+        db.commit()
+
+    except Exception as e:
+
+        job.status = "failed"
+        db.commit()
+
+        raise e
+
+    finally:
+
+        release_term_lock(term_id)
+        db.close()
 
 
 @celery_app.task(bind=True, max_retries=3)
 def scan_course_task(self, course_id, term_id):
+    """
+    Scan a single Canvas course safely with retries and metrics.
+    """
 
-    """
-    Scan a single Canvas course.
-    """
+    start_time = time.time()
+
+    db = SessionLocal()
 
     try:
 
-        # Skip if incremental scan determines course unchanged
+        # Skip course if incremental scanning enabled
         if settings.SCAN_INCREMENTAL_ENABLED:
 
             if not should_scan_course(
                 course_id,
                 threshold_hours=settings.SCAN_INCREMENTAL_THRESHOLD_HOURS,
             ):
+
                 increment_completed(term_id)
                 return
 
-        db = SessionLocal()
-
+        # Run scanner
         result = scan_course(course_id)
 
         risk_score = result.get("risk_score", 0)
@@ -109,9 +145,17 @@ def scan_course_task(self, course_id, term_id):
         db.add(scan_record)
         db.commit()
 
+        # Metrics
+        SCAN_COUNTER.inc()
+
+        duration = time.time() - start_time
+        SCAN_DURATION.observe(duration)
+
         increment_completed(term_id)
 
     except Exception as exc:
+
+        SCAN_FAILURES.inc()
 
         increment_failed(term_id)
 
@@ -125,3 +169,7 @@ def scan_course_task(self, course_id, term_id):
         except Retry:
 
             raise
+
+    finally:
+
+        db.close()

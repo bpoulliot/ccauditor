@@ -1,12 +1,13 @@
 from prometheus_client import generate_latest
-from prometheus_client import CONTENT_TYPE_LATEST
 import streamlit as st
 
 
 def show_metrics():
 
-    st.title("Prometheus Metrics")
+    st.title("Observability")
 
-    metrics = generate_latest()
+    st.subheader("Prometheus Metrics")
 
-    st.code(metrics.decode("utf-8"))
+    metrics = generate_latest().decode("utf-8")
+
+    st.code(metrics, language="text")

@@ -11,6 +11,9 @@ from app.ui.caption_dashboard import show_caption_dashboard
 from app.ui.scan_controls import show_scan_controls
 from app.ui.user_management import show_user_management
 from app.ui.settings_page import show_settings
+from app.ui.password_reset_ui import show_password_reset
+
+from app.observability.metrics_endpoint import show_metrics
 
 
 # --------------------------------------------------
@@ -31,7 +34,7 @@ st.set_page_config(
 
 
 # --------------------------------------------------
-# Bootstrap Admin Initialization
+# Bootstrap Admin
 # --------------------------------------------------
 
 ensure_bootstrap_admin()
@@ -66,6 +69,8 @@ page = st.sidebar.radio(
         "Caption Analytics",
         "Course Scanner",
         "Users",
+        "Password Reset",
+        "Observability",
         "Settings",
     ],
 )
@@ -89,6 +94,12 @@ elif page == "Course Scanner":
 
 elif page == "Users":
     show_user_management()
+
+elif page == "Password Reset":
+    show_password_reset()
+
+elif page == "Observability":
+    show_metrics()
 
 elif page == "Settings":
     show_settings()
