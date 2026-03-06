@@ -10,6 +10,38 @@ from app.canvas.client import get_courses
 from app.canvas.course_prioritizer import prioritize_courses
 
 from app.scanner.course_scanner import scan_course
+from app.progress.redis_progress import (
+    init_scan_progress,
+    increment_completed,
+    increment_failed,
+)
+
+from app.progress.redis_progress import (
+    init_scan_progress,
+    increment_completed,
+    increment_failed,
+)
+
+from app.optimization.incremental_scanner import should_scan_course
+
+
+from app.progress.redis_progress import (
+    init_scan_progress,
+    increment_completed,
+    increment_failed,
+)
+
+from app.optimization.incremental_scanner import should_scan_course
+
+
+from app.progress.redis_progress import (
+    init_scan_progress,
+    increment_completed,
+    increment_failed,
+)
+
+from app.optimization.incremental_scanner import should_scan_course
+
 
 from app.progress.redis_progress import (
     init_scan_progress,
@@ -55,6 +87,10 @@ def scan_term(self, term_id):
     if not acquire_term_lock(term_id):
         print(f"Scan already running for term {term_id}")
         return
+
+    """
+    Launch a full term scan.
+    """
 
     db = SessionLocal()
 
@@ -117,7 +153,46 @@ def scan_course_task(self, course_id, term_id):
 
     start_time = time.time()
 
-    db = SessionLocal()
+@celery_app.task(bind=True, max_retries=3)
+def scan_course_task(self, course_id, term_id):
+
+    """
+    Scan a single Canvas course.
+    """
+
+    try:
+
+        # Skip if incremental scan determines course unchanged
+        if settings.SCAN_INCREMENTAL_ENABLED:
+
+            if not should_scan_course(
+                course_id,
+                threshold_hours=settings.SCAN_INCREMENTAL_THRESHOLD_HOURS,
+            ):
+                increment_completed(term_id)
+                return
+
+        db = SessionLocal()
+
+        result = scan_course(course_id)
+
+        risk_score = result.get("risk_score", 0)
+
+        scan_record = CourseScan(
+            course_id=course_id,
+            risk_score=risk_score,
+        )
+
+        db.add(scan_record)
+        db.commit()
+
+        increment_completed(term_id)
+
+    except Exception as exc:
+
+        increment_failed(term_id)
+
+        try:
 
     try:
 
