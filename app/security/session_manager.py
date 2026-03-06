@@ -1,33 +1,47 @@
+import uuid
 import time
+import redis
+
+from app.config.settings import settings
 
 
-SESSION_TIMEOUT = 3600
+redis_client = redis.Redis.from_url(settings.REDIS_URL)
 
-
-sessions = {}
+SESSION_TTL = int(settings.SESSION_TIMEOUT)
 
 
 def create_session(user_id):
 
-    session_id = str(user_id) + "-" + str(time.time())
+    session_id = str(uuid.uuid4())
 
-    sessions[session_id] = {
-        "user_id": user_id,
-        "created": time.time(),
-    }
+    key = f"session:{session_id}"
+
+    redis_client.set(
+        key,
+        user_id,
+        ex=SESSION_TTL,
+    )
 
     return session_id
 
 
 def validate_session(session_id):
 
-    session = sessions.get(session_id)
+    key = f"session:{session_id}"
 
-    if not session:
+    user_id = redis_client.get(key)
+
+    if not user_id:
         return False
 
-    if time.time() - session["created"] > SESSION_TIMEOUT:
-        del sessions[session_id]
-        return False
+    # refresh TTL on activity
+    redis_client.expire(key, SESSION_TTL)
 
     return True
+
+
+def destroy_session(session_id):
+
+    key = f"session:{session_id}"
+
+    redis_client.delete(key)
