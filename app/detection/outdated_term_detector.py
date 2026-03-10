@@ -1,13 +1,10 @@
 import re
 
-
 TERM_PATTERNS = [
-
     r"(?i)\bsp(?:ring)?[\s\-]?20?\d{2}\b",
     r"(?i)\bfa(?:ll)?[\s\-]?20?\d{2}\b",
     r"(?i)\b20?\d{2}[\s\-]?sp\b",
     r"(?i)\b20?\d{2}[\s\-]?fa\b",
-
 ]
 
 

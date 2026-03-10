@@ -14,5 +14,5 @@ def estimate_caption_workload(videos):
     return {
         "video_minutes": total_minutes,
         "remediation_minutes": remediation_minutes,
-        "remediation_hours": remediation_minutes / 60
+        "remediation_hours": remediation_minutes / 60,
     }

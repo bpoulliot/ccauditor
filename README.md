@@ -481,6 +481,61 @@ Security features include:
 
 ---
 
+## Developer Setup
+
+Clone the repository:
+
+```
+git clone https://github.com/bpoulliot/ccauditor.git
+cd ccauditor
+```
+
+Install dependencies and developer tooling:
+
+```
+make dev
+```
+
+This installs:
+
+- runtime dependencies
+- development tools
+- pre-commit hooks
+
+### Run checks manually
+
+Lint:
+
+```
+make lint
+```
+
+Format code:
+
+```
+make format
+```
+
+Run tests:
+
+```
+make test
+```
+
+Security audit:
+
+```
+make audit
+```
+
+### Update dependencies
+
+```
+make deps
+```
+
+---
+
 # Contributing
 
 Contributions are welcome. Please follow these steps:

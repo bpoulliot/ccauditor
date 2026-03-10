@@ -1,20 +1,22 @@
-#Riley O'Shea
-#University of Colorado Colorado Springs
-#8/7/2025
+# Riley O'Shea
+# University of Colorado Colorado Springs
+# 8/7/2025
 ## This is a test to try to further filter out non video embedded files using selenium
 
 import json
 import os
 import sys
 import tkinter as tk
+
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
+
 
 def compileURLs(courses):
     """
@@ -26,20 +28,20 @@ def compileURLs(courses):
     """
     for course in courses:
         path = f"data/sortedModules/sorted_modules_{course}.json"
-        #ensure sorted modules file exists
+        # ensure sorted modules file exists
         try:
             with open(path, "r") as f:
                 data = json.load(f)
         except FileNotFoundError:
-            #skip the course if the file doesn't exist
+            # skip the course if the file doesn't exist
             print(f"  [!] JSON not found for course {course}, skipping.")
             continue
-    
-        #skip if no Canvas entries
+
+        # skip if no Canvas entries
         urls = data.get("canvas", [])
         if not urls:
             continue
-        #filter videos
+        # filter videos
 
 
 def jsonPrinter(hasCaptions, url):
@@ -50,7 +52,7 @@ def jsonPrinter(hasCaptions, url):
     returns:
         Prints results to audited_videos.json
     """
-    #print results to audited_videos.json
+    # print results to audited_videos.json
     file_path = "data/audited_videos.json"
     j = {
         "type": "Canvas",
@@ -58,7 +60,7 @@ def jsonPrinter(hasCaptions, url):
         "has_captions": hasCaptions,
     }
 
-    #load existing data or initialize an empty list
+    # load existing data or initialize an empty list
     if os.path.exists(file_path):
         with open(file_path, "r") as f:
             try:
@@ -71,9 +73,10 @@ def jsonPrinter(hasCaptions, url):
     # Append new entry
     data.append(j)
 
-    #write back to file
+    # write back to file
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
+
 
 def auditVideos(videos, timeout=2, headless=True):
     """
@@ -86,7 +89,7 @@ def auditVideos(videos, timeout=2, headless=True):
         isVideo: dictionary mapping URLs to whether they contain embedded videos
     This function uses Selenium to check each Canvas URL for embedded videos.
     """
-    #configure chrome
+    # configure chrome
     chrome_opts = Options()
     # if headless:
     #     chrome_opts.add_argument("--headless=new")
@@ -94,15 +97,14 @@ def auditVideos(videos, timeout=2, headless=True):
     chrome_opts.add_argument("--disable-gpu")
     chrome_opts.add_argument("--no-sandbox")
 
-    #start driver
+    # start driver
     driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=chrome_opts
+        service=Service(ChromeDriverManager().install()), options=chrome_opts
     )
 
-    #allow user to log in
+    # allow user to log in
     driver.get("https://canvas.uccs.edu/login")
-    #input("Please log in to Canvas and then press Enter to continue...")
+    # input("Please log in to Canvas and then press Enter to continue...")
     root = tk.Tk()
     root.title("Please Log Into Canvas")
     root.geometry("300x100")
@@ -118,18 +120,20 @@ def auditVideos(videos, timeout=2, headless=True):
         for url in videos:
             driver.get(url)
             try:
-                #check for video element
+                # check for video element
                 WebDriverWait(driver, timeout).until(
                     EC.presence_of_element_located((By.ID, "media_preview"))
                 )
 
-                #check for captions button
+                # check for captions button
                 try:
                     WebDriverWait(driver, timeout).until(
-                        EC.presence_of_element_located((
-                            By.CSS_SELECTOR,
-                            "button.controls-button[aria-label='Enable Captions']"
-                        ))
+                        EC.presence_of_element_located(
+                            (
+                                By.CSS_SELECTOR,
+                                "button.controls-button[aria-label='Enable Captions']",
+                            )
+                        )
                     )
                     captions_enabled = True
                     jsonPrinter(captions_enabled, url)  # save result to JSON
@@ -137,8 +141,6 @@ def auditVideos(videos, timeout=2, headless=True):
                 except TimeoutException:
                     captions_enabled = False
                     jsonPrinter(captions_enabled, url)  # save result to JSON
-
-                
 
                 isVideo[url] = True
             except TimeoutException:
@@ -184,10 +186,6 @@ def main(courses):
         all_canvas_with_video.extend(urls)
 
     auditVideos(all_canvas_with_video)  # audit all collected Canvas URLs
-
-
-
-    
 
 
 if __name__ == "__main__":

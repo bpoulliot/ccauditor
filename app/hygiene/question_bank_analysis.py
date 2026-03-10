@@ -1,5 +1,6 @@
-from app.ai.embedding_service import generate_embedding
 import numpy as np
+
+from app.ai.embedding_service import generate_embedding
 
 
 def cosine_similarity(a, b):
@@ -26,15 +27,19 @@ def detect_duplicate_questions(questions):
 
             if sim > 0.92:
 
-                duplicates.append({
-                    "original": prev["question"],
-                    "duplicate": q,
-                    "similarity": sim,
-                })
+                duplicates.append(
+                    {
+                        "original": prev["question"],
+                        "duplicate": q,
+                        "similarity": sim,
+                    }
+                )
 
-        embeddings.append({
-            "question": q,
-            "embedding": emb,
-        })
+        embeddings.append(
+            {
+                "question": q,
+                "embedding": emb,
+            }
+        )
 
     return duplicates

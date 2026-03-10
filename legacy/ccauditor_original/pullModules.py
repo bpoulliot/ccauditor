@@ -1,20 +1,21 @@
-#Riley O'Shea
-#University of Colorado Colorado Springs
-#06/25/2025
+# Riley O'Shea
+# University of Colorado Colorado Springs
+# 06/25/2025
 
-#pulls user courses, seperates modules and urls by type.
+# pulls user courses, seperates modules and urls by type.
+
+import json
 
 import requests
 from config.canvasAPI import CANVAS_API_TOKEN
-import json
 
 CANVAS_BASE_URL = "https://canvas.uccs.edu/api/v1"
 HEADERS = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
 
 
-#retrieves all courses that the user is enrolled in
+# retrieves all courses that the user is enrolled in
 def get_courses():
-    '''Fetches all courses the user is enrolled in from Canvas API.'''
+    """Fetches all courses the user is enrolled in from Canvas API."""
     print("Debug: Fetching courses")
     courses = []
     url = f"{CANVAS_BASE_URL}/courses"
@@ -34,14 +35,15 @@ def get_courses():
         next_url = None
         for link in links.split(","):
             if 'rel="next"' in link:
-                next_url = link[link.find("<")+1:link.find(">")]
+                next_url = link[link.find("<") + 1 : link.find(">")]
                 break
 
         url = next_url
 
     return courses
-    
-#Fetches all modules for a specific course
+
+
+# Fetches all modules for a specific course
 def getCourseModules(course_id):
     """Fetches all modules for a specific course from Canvas API.
     Args:
@@ -54,7 +56,7 @@ def getCourseModules(course_id):
     if response.status_code == 200:
         response = response.json()
         items_urls = [module.get("items_url") for module in response]
-        urls = [] #stores the urls of the items in the modules
+        urls = []  # stores the urls of the items in the modules
         for items_url in items_urls:
             if items_url:
                 items_response = requests.get(items_url, headers=HEADERS)
@@ -66,10 +68,10 @@ def getCourseModules(course_id):
                         if "external_url" in item:
                             urls.append(item["external_url"])
 
-
         print(f"Debug: Found {len(urls)} URLs in course {course_id}")
         return urls
-    
+
+
 def sortUrls(urls):
     """
     Sorts the different url's based on type
@@ -89,7 +91,6 @@ def sortUrls(urls):
     panopto = []
     other = []
 
-    
     for u in urls:
         if not isinstance(u, str):
             print(f"Debug: Skipping non-string URL: {u}")
@@ -107,39 +108,32 @@ def sortUrls(urls):
             print(f"Debug: Found other URL: {u}")
             other.append(u)
 
-    return {
-        "youtube": youtube,
-        "canvas": canvas,
-        "panopto": panopto,
-        "other": other
-    }
-            
-    
+    return {"youtube": youtube, "canvas": canvas, "panopto": panopto, "other": other}
+
 
 def main():
-    #get courses
+    # get courses
     courses = get_courses()
-    courses_ids = [course['id'] for course in courses]
-    with open('data/courses.json', 'w') as f:
+    courses_ids = [course["id"] for course in courses]
+    with open("data/courses.json", "w") as f:
         json.dump(courses, f, indent=4)
-   
-    #save course ids
-    with open('data/courses_ids.json', 'w') as f:
+
+    # save course ids
+    with open("data/courses_ids.json", "w") as f:
         json.dump(courses_ids, f, indent=4)
 
-    
-    #Pull modules for each course & sort
+    # Pull modules for each course & sort
     for course in courses_ids:
         modules = getCourseModules(course)
-        with open(f'data/courseModules/modules_{course}.json', 'w') as f:
+        with open(f"data/courseModules/modules_{course}.json", "w") as f:
             json.dump(modules, f, indent=4)
 
-    #sort modules and save to json
+    # sort modules and save to json
     for course in courses_ids:
-        with open(f'data/courseModules/modules_{course}.json', 'r') as f:
+        with open(f"data/courseModules/modules_{course}.json", "r") as f:
             urls = json.load(f)
         sortedUrls = sortUrls(urls)
-        with open(f'data/sortedModules/sorted_modules_{course}.json', 'w') as f:
+        with open(f"data/sortedModules/sorted_modules_{course}.json", "w") as f:
             json.dump(sortedUrls, f, indent=4)
 
 

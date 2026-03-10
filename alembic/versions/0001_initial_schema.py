@@ -1,6 +1,4 @@
 from alembic import op
-import sqlalchemy as sa
-from pgvector.sqlalchemy import Vector
 
 revision = "0001_initial"
 down_revision = None

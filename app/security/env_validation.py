@@ -1,6 +1,5 @@
 import os
 
-
 REQUIRED_ENV_VARS = [
     "CANVAS_BASE_URL",
     "CANVAS_API_TOKEN",
@@ -19,6 +18,4 @@ def validate_environment():
 
     if missing:
 
-        raise RuntimeError(
-            f"Missing required environment variables: {missing}"
-        )
+        raise RuntimeError(f"Missing required environment variables: {missing}")

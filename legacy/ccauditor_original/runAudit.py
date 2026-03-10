@@ -1,15 +1,17 @@
-#Riley O'Shea
-#University of Colorado Colorado Springs
-#06/25/2025
+# Riley O'Shea
+# University of Colorado Colorado Springs
+# 06/25/2025
 
 
-#runs the scripts in the correct order to manage audit
+# runs the scripts in the correct order to manage audit
+
+import json
+import sys
 
 import pullModules
-import youtubeVideo
 import sortEmbeddedVideos
-import sys, json
-    
+import youtubeVideo
+
 
 def main():
     """Main function to run a complete audit."""
@@ -18,21 +20,20 @@ def main():
     youtubeVideo.main()
     print("Debug: Audit completed successfully")
 
-    #create a container for all course IDs
+    # create a container for all course IDs
     courseIDs = []
-    #load course IDs from the modules json file
-    with open('data/courses_ids.json', 'r') as f:
+    # load course IDs from the modules json file
+    with open("data/courses_ids.json", "r") as f:
         try:
-            #fill courseIDs with the list of ids from the json file
+            # fill courseIDs with the list of ids from the json file
             courseIDs = json.load(f)
         except json.JSONDecodeError:
-            #throw an error and exit if the json file is invalid
+            # throw an error and exit if the json file is invalid
             print("Error: Could not decode JSON from course_ids.json")
             sys.exit(1)
 
-    #run embedded video audit on list of courseIDs
+    # run embedded video audit on list of courseIDs
     sortEmbeddedVideos.main(courseIDs)
-   
 
 
 if __name__ == "__main__":

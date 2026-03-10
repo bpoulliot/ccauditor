@@ -18,10 +18,12 @@ def detect_duplicate_content(contents):
 
         if h in seen:
 
-            duplicates.append({
-                "original": seen[h],
-                "duplicate": item,
-            })
+            duplicates.append(
+                {
+                    "original": seen[h],
+                    "duplicate": item,
+                }
+            )
 
         else:
 

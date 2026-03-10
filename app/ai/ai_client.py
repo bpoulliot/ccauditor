@@ -1,6 +1,7 @@
+import anthropic
 import requests
 from openai import OpenAI
-import anthropic
+
 from app.config.settings import settings
 
 
@@ -37,9 +38,7 @@ class AIClient:
 
         if provider == "anthropic":
 
-            client = anthropic.Anthropic(
-                api_key=settings.ANTHROPIC_API_KEY
-            )
+            client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
             message = client.messages.create(
                 model=settings.AI_MODEL,

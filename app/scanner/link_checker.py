@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
+
 def check_links(html):
 
     soup = BeautifulSoup(html, "html.parser")
@@ -19,16 +20,20 @@ def check_links(html):
 
             if r.status_code >= 400:
 
-                results.append({
-                    "url": href,
-                    "status": r.status_code,
-                })
+                results.append(
+                    {
+                        "url": href,
+                        "status": r.status_code,
+                    }
+                )
 
         except Exception:
 
-            results.append({
-                "url": href,
-                "status": "error",
-            })
+            results.append(
+                {
+                    "url": href,
+                    "status": "error",
+                }
+            )
 
     return results

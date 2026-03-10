@@ -18,10 +18,12 @@ def detect_duplicate_files(files):
 
         if h in hashes:
 
-            duplicates.append({
-                "original": hashes[h],
-                "duplicate": file,
-            })
+            duplicates.append(
+                {
+                    "original": hashes[h],
+                    "duplicate": file,
+                }
+            )
 
         else:
 

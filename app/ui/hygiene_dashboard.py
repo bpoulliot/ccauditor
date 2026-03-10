@@ -1,5 +1,7 @@
 import streamlit as st
+
 from app.hygiene.hygiene_service import analyze_course_hygiene
+from app.ui.components.term_selector import select_enrollment_term
 
 
 def show_hygiene_dashboard():
@@ -7,6 +9,11 @@ def show_hygiene_dashboard():
     st.title("Content Hygiene Dashboard")
 
     st.write("Analyze duplicate and unused content across courses.")
+
+    term_id = select_enrollment_term()
+
+    if not term_id:
+        st.stop()
 
     if st.button("Run Hygiene Analysis"):
 

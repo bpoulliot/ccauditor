@@ -1,11 +1,10 @@
-import streamlit as st
 import redis
-
+import streamlit as st
 from celery import Celery
 from prometheus_client import generate_latest
 
-from app.config.settings import settings
 from app.auth.rbac import require_role
+from app.config.settings import settings
 
 
 celery_app = Celery(
@@ -85,9 +84,10 @@ def get_running_tasks():
 
 def get_prometheus_metrics():
 
-    metrics = generate_latest().decode("utf-8")
-
-    return metrics
+    try:
+        return generate_latest().decode("utf-8")
+    except Exception:
+        return "Metrics unavailable"
 
 
 def show_worker_dashboard(user_id):
@@ -151,9 +151,7 @@ def show_worker_dashboard(user_id):
 
         for t in tasks:
 
-            st.write(
-                f"{t['task']} running on {t['worker']} (id: {t['id']})"
-            )
+            st.write(f"{t['task']} running on {t['worker']} (id: {t['id']})")
 
     else:
 
@@ -185,4 +183,4 @@ def show_worker_dashboard(user_id):
 
         celery_app.control.purge()
 
-        st.success("Queue purged.")
+        st.success(f"{queue} queue purged")

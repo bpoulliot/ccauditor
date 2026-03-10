@@ -1,5 +1,4 @@
-from app.hygiene.file_analysis import detect_duplicate_files
-from app.hygiene.file_analysis import detect_unused_files
+from app.hygiene.file_analysis import detect_duplicate_files, detect_unused_files
 from app.hygiene.question_bank_analysis import detect_duplicate_questions
 
 

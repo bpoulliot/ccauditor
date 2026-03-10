@@ -18,3 +18,4 @@ pdfminer.six
 numpy
 prometheus-client
 grafana
+PyPDF2

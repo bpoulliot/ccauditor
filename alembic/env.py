@@ -1,16 +1,15 @@
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from alembic import context
+from sqlalchemy import engine_from_config, pool
 
-from app.database.models import Base
+from alembic import context
 from app.config.settings import settings
+from app.database.models import Base
 
 config = context.config
 
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 target_metadata = Base.metadata
+
 
 def run_migrations_online():
 
@@ -26,5 +25,6 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 run_migrations_online()

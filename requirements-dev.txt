@@ -1,0 +1,7 @@
+ruff
+black
+isort
+pytest
+pip-audit
+pip-tools
+pre-commit

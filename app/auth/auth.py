@@ -1,9 +1,9 @@
 import os
+
 from argon2 import PasswordHasher
 
 from app.database.db import SessionLocal
-from app.database.models import User, Role
-
+from app.database.models import Role, User
 
 ph = PasswordHasher()
 
@@ -22,9 +22,7 @@ def ensure_bootstrap_admin():
     db = SessionLocal()
 
     existing_user = (
-        db.query(User)
-        .filter(User.username == BOOTSTRAP_ADMIN_USERNAME)
-        .first()
+        db.query(User).filter(User.username == BOOTSTRAP_ADMIN_USERNAME).first()
     )
 
     if existing_user:

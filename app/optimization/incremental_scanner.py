@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+
 from app.database.db import SessionLocal
 from app.database.models import CourseScan
 

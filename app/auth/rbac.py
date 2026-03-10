@@ -1,5 +1,5 @@
 from app.database.db import SessionLocal
-from app.database.models import User, Role
+from app.database.models import Role, User
 
 
 def get_user_role(user_id):

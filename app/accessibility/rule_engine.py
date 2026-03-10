@@ -1,19 +1,47 @@
-from app.accessibility.remediation import remediation_guidance
+from app.accessibility.wcag_loader import load_wcag
+from app.accessibility.rule_mapping import ISSUE_TO_WCAG
+from app.config.settings import settings
 
 
-def evaluate_rules(issues):
+def evaluate_rules(raw_issues):
 
-    results = []
+    wcag_version = settings.ACCESSIBILITY_STANDARD_VERSION
+    wcag_rules = load_wcag(wcag_version)
 
-    for issue in issues:
+    filtered = []
 
-        guidance = remediation_guidance.get(issue["type"], "")
+    for issue in raw_issues:
 
-        results.append({
-            "type": issue["type"],
-            "severity": issue.get("severity", "medium"),
-            "location": issue.get("location"),
-            "guidance": guidance,
-        })
+        mapping = ISSUE_TO_WCAG.get(issue["type"])
 
-    return results
+        if not mapping:
+            continue
+
+        wcag_id = mapping["wcag"]
+        content_type = mapping["content"]
+
+        rule = wcag_rules.get(wcag_id)
+
+        if not rule:
+            continue
+
+        # --------------------------------------------------
+        # Filter by WCAG conformance level
+        # --------------------------------------------------
+
+        selected_level = settings.ACCESSIBILITY_LEVEL
+
+        if selected_level == "A" and rule["level"] != "A":
+            continue
+
+        if selected_level == "AA" and rule["level"] not in ["A", "AA"]:
+            continue
+
+        issue["wcag"] = wcag_id
+        issue["wcag_title"] = rule["title"]
+        issue["wcag_url"] = rule["url"]
+        issue["content_type"] = content_type
+
+        filtered.append(issue)
+
+    return filtered

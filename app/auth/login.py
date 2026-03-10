@@ -1,12 +1,11 @@
 import streamlit as st
 
+from app.auth.auth import verify_password
 from app.database.db import SessionLocal
 from app.database.models import User
-
-from app.auth.auth import verify_password
+from app.security.audit_logger import log_event
 from app.security.login_throttle import register_attempt
 from app.security.session_manager import create_session
-from app.security.audit_logger import log_event
 
 
 def show_login():
@@ -52,7 +51,7 @@ def show_login():
 
             log_event("login_success", user=username)
 
-            st.experimental_rerun()
+            st.rerun()
 
         else:
 

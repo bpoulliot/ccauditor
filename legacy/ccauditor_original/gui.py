@@ -1,16 +1,17 @@
-#Riley O'Shea
-#University of Colorado Colorado Springs
-#7/29/25
-#Graphical User Interface for user interaction with auditing tool
+# Riley O'Shea
+# University of Colorado Colorado Springs
+# 7/29/25
+# Graphical User Interface for user interaction with auditing tool
 
-import tkinter as tk
-import tkinter.ttk as tkk
-from tkinter import messagebox, filedialog
-import subprocess
-import json, sys
 import os
 import re
+import subprocess
+import sys
+import tkinter as tk
+from tkinter import messagebox
+
 from config.version import version
+
 
 def dataReset():
     """Reset all data by running the dataReset script."""
@@ -20,9 +21,15 @@ def dataReset():
 
 def showAuditResults():
     """show a message box showing the count of videos with and without captions."""
-    messagebox.showinfo("Audit", "Running audit, this may take a while depending on the number of videos.")
+    messagebox.showinfo(
+        "Audit",
+        "Running audit, this may take a while depending on the number of videos.",
+    )
     subprocess.run(["python", "runAudit.py"], capture_output=True, text=True)
-    messagebox.showinfo("Audit Complete", "Audit completed successfully. Check the 'data' folder for results.")
+    messagebox.showinfo(
+        "Audit Complete",
+        "Audit completed successfully. Check the 'data' folder for results.",
+    )
 
 
 def open_json_file():
@@ -60,7 +67,7 @@ def runIndividualAudit(course_id):
     args:
         course_id (str): The ID of the course to audit.
     Run an individual course aduit. Results will be saved in the 'data' folder.
-    
+
     """
     subprocess.run(["python", "individualAudit.py", course_id])
     messagebox.showinfo(
@@ -110,11 +117,11 @@ def main():
     warningWindow.title("In Development")
     warningWindow.geometry("400x200")
 
-    msg = (
-        "This tool is still under development. Please only use it as a tool to streamline the auditing process."
-    )
+    msg = "This tool is still under development. Please only use it as a tool to streamline the auditing process."
     tk.Label(warningWindow, text=msg, wraplength=300, justify="center").pack(pady=20)
-    tk.Button(warningWindow, text="I understand", command=warningWindow.destroy).pack(pady=10)
+    tk.Button(warningWindow, text="I understand", command=warningWindow.destroy).pack(
+        pady=10
+    )
 
     warningWindow.mainloop()
 
@@ -123,7 +130,9 @@ def main():
     root.title(f"UCCS Closed Captioning Audit {version}")
     root.geometry("500x350")
 
-    tk.Label(root, text="UCCS Closed Captioning Audit", font=("Arial", 20)).pack(pady=10)
+    tk.Label(root, text="UCCS Closed Captioning Audit", font=("Arial", 20)).pack(
+        pady=10
+    )
     tk.Button(root, text="Run Complete Audit", command=showAuditResults).pack(pady=10)
 
     def promptIndividualAudit():
@@ -172,13 +181,18 @@ def main():
         popup.wait_window()
 
     # Main buttons
-    tk.Button(root, text="Run Individual Course Audit", command=promptIndividualAudit).pack(pady=10)
+    tk.Button(
+        root, text="Run Individual Course Audit", command=promptIndividualAudit
+    ).pack(pady=10)
     tk.Button(root, text="View Results", command=open_json_file).pack(pady=10)
     tk.Button(root, text="Settings", command=promptSettings).pack(pady=10)
-    tk.Button(root,
-              text="Reset Data (WARNING: All existing data will be lost!)",
-              command=dataReset,
-              bg="red", fg="white").pack(pady=10)
+    tk.Button(
+        root,
+        text="Reset Data (WARNING: All existing data will be lost!)",
+        command=dataReset,
+        bg="red",
+        fg="white",
+    ).pack(pady=10)
 
     root.mainloop()
 

@@ -1,6 +1,11 @@
 from celery import Celery
-from app.config.settings import settings
 
+from app.config.settings import settings
+from app.database.init_db import init_db
+from app.observability.metrics_endpoint import start_metrics_server
+
+# Ensure DB exists before workers start
+init_db()
 
 celery_app = Celery(
     "ccauditor",
@@ -8,31 +13,23 @@ celery_app = Celery(
     backend=settings.REDIS_URL,
 )
 
+# Load Celery configuration
+celery_app.config_from_object("app.celeryconfig")
 
-celery_app.conf.update(
-
-    # Task execution limits
-    task_time_limit=settings.CELERY_TASK_TIME_LIMIT,
-    task_soft_time_limit=settings.CELERY_TASK_SOFT_TIME_LIMIT,
-
-    # Serialization
-    task_serializer="json",
-    result_serializer="json",
-    accept_content=["json"],
-
-    # Retry behavior
-    task_acks_late=True,
-    worker_prefetch_multiplier=1,
-
-    # Queue definitions
-    task_default_queue="scans",
-
-    task_routes={
-        "app.tasks.scan_tasks.*": {"queue": "scans"},
-        "app.ai.*": {"queue": "ai"},
-        "app.hygiene.*": {"queue": "hygiene"},
-    },
-
-    # Worker reliability
-    worker_max_tasks_per_child=settings.CELERY_WORKER_MAX_TASKS_PER_CHILD,
+# Automatically discover all tasks in these packages
+celery_app.autodiscover_tasks(
+    [
+        "app.tasks.scan_tasks",
+        "app.observability.tasks",
+    ]
 )
+
+start_metrics_server()
+
+# Periodic jobs
+celery_app.conf.beat_schedule = {
+    "update-queue-metrics": {
+        "task": "app.observability.tasks.update_queue_metrics_task",
+        "schedule": 30.0,
+    }
+}

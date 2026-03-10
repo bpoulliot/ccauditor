@@ -1,7 +1,7 @@
 import os
+
 import pytest
 from canvasapi import Canvas
-
 
 url = os.getenv("CANVAS_BASE_URL")
 token = os.getenv("CANVAS_API_TOKEN")

@@ -1,15 +1,13 @@
 import os
 import re
-import streamlit as st
 
+import streamlit as st
 from argon2 import PasswordHasher
 
 from app.database.db import SessionLocal
-from app.database.models import User, Role
-
-from app.security.password_policy import validate_password
+from app.database.models import Role, User
 from app.security.audit_logger import log_event
-
+from app.security.password_policy import validate_password
 
 BOOTSTRAP_ADMIN_USERNAME = os.getenv("BOOTSTRAP_ADMIN_USERNAME")
 

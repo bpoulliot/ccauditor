@@ -1,5 +1,4 @@
 import time
-import requests
 
 
 def safe_request(request_func, *args, **kwargs):

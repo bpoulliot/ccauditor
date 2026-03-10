@@ -1,127 +1,52 @@
 import time
 
-from celery.exceptions import Retry
-
+from app.analytics.department import extract_department
+from app.canvas.client import (
+    get_courses_by_term,
+    get_course_by_canvas_id,
+    get_course_by_sis_id,
+)
+from app.canvas.course_prioritizer import prioritize_courses
+from app.celery_app import celery_app
 from app.config.settings import settings
 from app.database.db import SessionLocal
 from app.database.models import CourseScan, ScanJob
-
-from app.canvas.client import get_courses
-from app.canvas.course_prioritizer import prioritize_courses
-
-from app.scanner.course_scanner import scan_course
-from app.progress.redis_progress import (
-    init_scan_progress,
-    increment_completed,
-    increment_failed,
-)
-
-from app.progress.redis_progress import (
-    init_scan_progress,
-    increment_completed,
-    increment_failed,
-)
-
-from app.optimization.incremental_scanner import should_scan_course
-
-
-from app.progress.redis_progress import (
-    init_scan_progress,
-    increment_completed,
-    increment_failed,
-)
-
-from app.optimization.incremental_scanner import should_scan_course
-
-
-from app.progress.redis_progress import (
-    init_scan_progress,
-    increment_completed,
-    increment_failed,
-)
-
-from app.optimization.incremental_scanner import should_scan_course
-
-
-from app.progress.redis_progress import (
-    init_scan_progress,
-    increment_completed,
-    increment_failed,
-)
-
-from app.progress.scan_lock import (
-    acquire_term_lock,
-    release_term_lock,
-)
-
-from app.optimization.incremental_scanner import should_scan_course
-
 from app.observability.metrics import (
-    SCAN_COUNTER,
-    SCAN_DURATION,
-    SCAN_FAILURES,
-)
-
-
-from app.progress.redis_progress import (
-    init_scan_progress,
-    increment_completed,
-    increment_failed,
-)
-
-from app.progress.scan_lock import (
-    acquire_term_lock,
-    release_term_lock,
-)
-
-from app.optimization.incremental_scanner import should_scan_course
-
-from app.observability.metrics import (
-    SCAN_COUNTER,
-    SCAN_DURATION,
-    SCAN_FAILURES,
-)
-
-
-from app.celery_app import celery_app
-
-from app.progress.redis_progress import (
-    init_scan_progress,
-    increment_completed,
-    increment_failed,
-)
-
-from app.progress.scan_lock import (
-    acquire_term_lock,
-    release_term_lock,
-)
-
-from app.optimization.incremental_scanner import should_scan_course
-from app.analytics.department import extract_department
-
-from app.observability.metrics import (
-    COURSE_SCANS_TOTAL,
-    SCAN_DURATION_SECONDS,
-    SCAN_FAILURES_TOTAL,
     ACCESSIBILITY_ISSUES_TOTAL,
     BROKEN_LINKS_TOTAL,
     CAPTION_REMEDIATION_HOURS,
     COURSE_RISK_SCORE,
-    DEPARTMENT_RISK_SCORE,
+    COURSE_SCANS_TOTAL,
     DEPARTMENT_ACCESSIBILITY_ISSUES,
+    DEPARTMENT_RISK_SCORE,
+    SCAN_DURATION_SECONDS,
+    SCAN_FAILURES_TOTAL,
 )
-
-celery_app.conf.update(
-    task_time_limit=settings.CELERY_TASK_TIME_LIMIT,
-    task_soft_time_limit=settings.CELERY_TASK_SOFT_TIME_LIMIT,
+from app.optimization.incremental_scanner import should_scan_course
+from app.progress.redis_progress import (
+    increment_completed,
+    increment_failed,
+    init_scan_progress,
+    is_cancelled,
+    get_progress,
+    clear_progress,
+    clear_cancel,
 )
+from app.progress.scan_lock import acquire_term_lock, release_term_lock
+from app.scanner.course_scanner import scan_course
 
+
+# --------------------------------------------------
+# Scan Term Task
+# --------------------------------------------------
 
 @celery_app.task(bind=True)
-def scan_term(self, term_id):
+def scan_term(self, term_id=None, canvas_course_id=None, sis_course_id=None):
 
-    if not acquire_term_lock(term_id):
-        print(f"Scan already running for term {term_id}")
+    lock_id = term_id or canvas_course_id or sis_course_id
+
+    if not acquire_term_lock(lock_id):
+        print(f"Scan already running for target {lock_id}")
         return
 
     db = SessionLocal()
@@ -131,262 +56,64 @@ def scan_term(self, term_id):
         job = ScanJob(term_id=term_id, status="running")
         db.add(job)
         db.commit()
+        db.refresh(job)
 
-        canvas_courses = get_courses()
+        job_id = str(job.id)
 
         courses = []
 
-        for course in canvas_courses:
+        if canvas_course_id:
+            course = get_course_by_canvas_id(canvas_course_id)
+            courses = [course]
 
-            if course.enrollment_term_id == term_id:
-                courses.append(course)
+        elif sis_course_id:
+            course = get_course_by_sis_id(sis_course_id)
+            courses = [course]
+
+        elif term_id:
+            canvas_courses = get_courses_by_term(term_id)
+            courses = [c for c in canvas_courses if c.enrollment_term_id == term_id]
+
+        else:
+            raise ValueError("No scan target specified")
 
         courses = prioritize_courses(courses)
 
-        init_scan_progress(term_id, len(courses))
-
-        for course in courses:
-            scan_course_task.delay(course.id, term_id)
-
-    finally:
-
-        release_term_lock(term_id)
-        db.close()
-
-
-@celery_app.task(bind=True, max_retries=3)
-def scan_course_task(self, course_id, term_id):
-
-    start_time = time.time()
-
-                courses.append(
-                    {
-                        "id": course.id,
-                        "video_count": 0,
-                        "file_count": 0,
-                        "page_count": 0,
-                    }
-                )
-
-        # Prioritize high-risk courses first
-        courses = prioritize_courses(courses)
-
-        total_courses = len(courses)
-
-        init_scan_progress(term_id, total_courses)
+        init_scan_progress(job_id, len(courses))
 
         for course in courses:
 
-            scan_course_task.delay(course["id"], term_id)
+            if is_cancelled(job_id):
+                break
 
-        job.status = "queued"
-        db.commit()
-
-    except Exception as e:
-
-        job.status = "failed"
-        db.commit()
-
-        raise e
-
-    finally:
-
-        release_term_lock(term_id)
-        db.close()
-
-
-@celery_app.task(bind=True, max_retries=3)
-def scan_course_task(self, course_id, term_id):
-    """
-    Scan a single Canvas course safely with retries and metrics.
-    """
-
-    start_time = time.time()
-
-                courses.append(
-                    {
-                        "id": course.id,
-                        "video_count": 0,
-                        "file_count": 0,
-                        "page_count": 0,
-                    }
-                )
-
-        # Prioritize high-risk courses first
-        courses = prioritize_courses(courses)
-
-        total_courses = len(courses)
-
-        init_scan_progress(term_id, total_courses)
-
-        for course in courses:
-
-            scan_course_task.delay(course["id"], term_id)
-
-        job.status = "queued"
-        db.commit()
-
-    except Exception as e:
-
-        job.status = "failed"
-        db.commit()
-
-        raise e
-
-    finally:
-
-        release_term_lock(term_id)
-        db.close()
-
-
-@celery_app.task(bind=True, max_retries=3)
-def scan_course_task(self, course_id, term_id):
-    """
-    Scan a single Canvas course safely with retries and metrics.
-    """
-
-    start_time = time.time()
-
-@celery_app.task(bind=True, max_retries=3)
-def scan_course_task(self, course_id, term_id):
-
-    """
-    Scan a single Canvas course.
-    """
-
-    try:
-
-        # Skip if incremental scan determines course unchanged
-        if settings.SCAN_INCREMENTAL_ENABLED:
-
-            if not should_scan_course(
-                course_id,
-                threshold_hours=settings.SCAN_INCREMENTAL_THRESHOLD_HOURS,
-            ):
-                increment_completed(term_id)
-                return
-
-        db = SessionLocal()
-
-        result = scan_course(course_id)
-
-        risk_score = result.get("risk_score", 0)
-
-        scan_record = CourseScan(
-            course_id=course_id,
-            risk_score=risk_score,
-        )
-
-        db.add(scan_record)
-        db.commit()
-
-        increment_completed(term_id)
-
-    except Exception as exc:
-
-        increment_failed(term_id)
-
-        try:
-
-    try:
-
-        # Skip course if incremental scanning enabled
-        if settings.SCAN_INCREMENTAL_ENABLED:
-
-            if not should_scan_course(
-                course_id,
-                threshold_hours=settings.SCAN_INCREMENTAL_THRESHOLD_HOURS,
-            ):
-
-                increment_completed(term_id)
-                return
-
-        # Run scanner
-        result = scan_course(course_id)
-
-        risk_score = result.get("risk_score", 0)
-
-        scan_record = CourseScan(
-            course_id=course_id,
-            risk_score=risk_score,
-        )
-
-        db.add(scan_record)
-        db.commit()
-
-        # Metrics
-        SCAN_COUNTER.inc()
-
-        duration = time.time() - start_time
-        SCAN_DURATION.observe(duration)
-
-        increment_completed(term_id)
-
-    except Exception as exc:
-
-        SCAN_FAILURES.inc()
-
-        increment_failed(term_id)
-
-        try:
-
-            raise self.retry(
-                exc=exc,
-                countdown=settings.SCAN_RETRY_DELAY,
+            scan_course_task.apply_async(
+                args=[course.id, job_id],
+                queue="scans",
             )
 
-        except Retry:
+        return job_id
+
+    finally:
+        release_term_lock(lock_id)
+        db.close()
+
+
+# --------------------------------------------------
+# Scan Course Task
+# --------------------------------------------------
+
+@celery_app.task(bind=True, max_retries=3)
+def scan_course_task(self, course_id, job_id):
+
+    start_time = time.time()
+
+    db = SessionLocal()
 
     try:
 
-        # Skip course if incremental scanning enabled
-        if settings.SCAN_INCREMENTAL_ENABLED:
-
-            if not should_scan_course(
-                course_id,
-                threshold_hours=settings.SCAN_INCREMENTAL_THRESHOLD_HOURS,
-            ):
-
-                increment_completed(term_id)
-                return
-
-        # Run scanner
-        result = scan_course(course_id)
-
-        risk_score = result.get("risk_score", 0)
-
-        scan_record = CourseScan(
-            course_id=course_id,
-            risk_score=risk_score,
-        )
-
-        db.add(scan_record)
-        db.commit()
-
-        # Metrics
-        SCAN_COUNTER.inc()
-
-        duration = time.time() - start_time
-        SCAN_DURATION.observe(duration)
-
-        increment_completed(term_id)
-
-    except Exception as exc:
-
-        SCAN_FAILURES.inc()
-
-        increment_failed(term_id)
-
-        try:
-
-            raise self.retry(
-                exc=exc,
-                countdown=settings.SCAN_RETRY_DELAY,
-            )
-
-        except Retry:
-
-    try:
+        # stop immediately if cancelled
+        if is_cancelled(job_id):
+            return
 
         if settings.SCAN_INCREMENTAL_ENABLED:
 
@@ -394,10 +121,14 @@ def scan_course_task(self, course_id, term_id):
                 course_id,
                 threshold_hours=settings.SCAN_INCREMENTAL_THRESHOLD_HOURS,
             ):
-                increment_completed(term_id)
+                increment_completed(job_id)
                 return
 
         result = scan_course(course_id)
+
+        # check cancel again after scan
+        if is_cancelled(job_id):
+            return
 
         risk_score = result.get("risk_score", 0)
 
@@ -413,13 +144,11 @@ def scan_course_task(self, course_id, term_id):
 
         for issue in result.get("issues", []):
 
-            ACCESSIBILITY_ISSUES_TOTAL.labels(
-                issue_type=issue["type"]
-            ).inc()
+            ACCESSIBILITY_ISSUES_TOTAL.labels(issue_type=issue["type"]).inc()
 
             DEPARTMENT_ACCESSIBILITY_ISSUES.labels(
                 department=department,
-                issue_type=issue["type"]
+                issue_type=issue["type"],
             ).inc()
 
         BROKEN_LINKS_TOTAL.inc(len(result.get("links", [])))
@@ -436,14 +165,55 @@ def scan_course_task(self, course_id, term_id):
         db.add(scan_record)
         db.commit()
 
-        increment_completed(term_id)
+        increment_completed(job_id)
+
+        # --------------------------------------------------
+        # Safe Job Completion Check
+        # --------------------------------------------------
+
+        progress = get_progress(job_id)
+
+        if progress:
+
+            finished = progress["completed"] + progress["failed"]
+
+            if finished >= progress["total"]:
+
+                job = db.get(ScanJob, job_id)
+
+                if job and job.status not in ["completed", "cancelled"]:
+
+                    job.status = "completed"
+                    db.commit()
+
+                # cleanup Redis progress entry
+                clear_progress(job_id)
+
+        progress = get_progress(job_id)
+
+        if progress and (progress["completed"] + progress["failed"]) >= progress["total"]:
+
+            job = db.get(ScanJob, job_id)
+
+            if job:
+                job.status = "completed"
+                db.commit()
+
+            clear_progress(job_id)
+            clear_cancel(job_id)
 
     except Exception as exc:
 
-        SCAN_FAILURES_TOTAL.inc()
-        increment_failed(term_id)
+        db.rollback()
 
-        raise self.retry(exc=exc, countdown=settings.SCAN_RETRY_DELAY)
+        SCAN_FAILURES_TOTAL.inc()
+
+        increment_failed(job_id)
+
+        raise self.retry(
+            exc=exc,
+            countdown=settings.SCAN_RETRY_DELAY,
+        )
 
     finally:
 

@@ -1,7 +1,19 @@
-from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, Boolean, Text
-from pgvector.sqlalchemy import Vector
+import uuid
 import datetime
+
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.dialects.postgresql import UUID
 
 Base = declarative_base()
 
@@ -12,6 +24,13 @@ class Role(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
+
+class AppSetting(Base):
+
+    __tablename__ = "app_settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(String)
 
 
 class User(Base):
@@ -60,10 +79,11 @@ class ScanJob(Base):
 
     __tablename__ = "scan_jobs"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    term_id = Column(Integer)
-    status = Column(String)
+    term_id = Column(Integer, nullable=True)
+
+    status = Column(String, default="running")
 
     paused = Column(Boolean, default=False)
     cancelled = Column(Boolean, default=False)

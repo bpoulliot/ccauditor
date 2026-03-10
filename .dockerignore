@@ -1,0 +1,11 @@
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+node_modules
+dist
+build
+tests
