@@ -1,22 +1,59 @@
+import random
+import threading
 import time
 
 
-def safe_request(request_func, *args, **kwargs):
+class CanvasRateLimiter:
+    """
+    Token bucket rate limiter designed for Canvas API workloads.
 
-    retries = 5
+    Prevents:
+    • request bursts
+    • DNS exhaustion
+    • connection pool starvation
+    """
 
-    for attempt in range(retries):
+    def __init__(
+        self,
+        rate=8,          # requests per second
+        burst=12,        # burst allowance
+        min_sleep=0.02,  # baseline jitter
+        max_sleep=0.15,
+    ):
+        self.rate = rate
+        self.capacity = burst
+        self.tokens = burst
+        self.last_refill = time.time()
+        self.lock = threading.Lock()
 
-        response = request_func(*args, **kwargs)
+        self.min_sleep = min_sleep
+        self.max_sleep = max_sleep
 
-        if response.status_code == 429:
+    def acquire(self):
+        """
+        Block until a request token is available.
+        """
 
-            retry_after = int(response.headers.get("Retry-After", 5))
+        while True:
 
-            time.sleep(retry_after)
+            with self.lock:
 
-            continue
+                now = time.time()
+                elapsed = now - self.last_refill
 
-        return response
+                # refill tokens
+                refill = elapsed * self.rate
 
-    raise Exception("Canvas API rate limit exceeded repeatedly")
+                if refill > 0:
+                    self.tokens = min(self.capacity, self.tokens + refill)
+                    self.last_refill = now
+
+                if self.tokens >= 1:
+                    self.tokens -= 1
+                    return
+
+            # sleep with jitter outside lock
+            time.sleep(random.uniform(self.min_sleep, self.max_sleep))
+
+
+canvas_rate_limiter = CanvasRateLimiter()

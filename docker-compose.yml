@@ -6,12 +6,6 @@ x-worker-build: &worker-build
   context: .
   dockerfile: docker/worker.Dockerfile
 
-x-worker-env: &worker-env
-  REDIS_URL: ${REDIS_URL}
-  DATABASE_URL: ${DATABASE_URL}
-  CANVAS_BASE_URL: ${CANVAS_BASE_URL}
-  CANVAS_API_TOKEN: ${CANVAS_API_TOKEN}
-
 x-worker-healthcheck: &worker-healthcheck
   test: ["CMD", "celery", "-A", "app.celery_app", "inspect", "ping"]
   interval: 60s
@@ -25,6 +19,19 @@ x-logging-default: &logging-default
     max-size: "10m"
     max-file: "3"
 
+x-worker-common: &worker-common
+  dns:
+    - 1.1.1.1
+    - 8.8.8.8
+  restart: unless-stopped
+  env_file:
+    - .env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
 # -------------------------------------------------------------------
 # Services
 # -------------------------------------------------------------------
@@ -32,6 +39,7 @@ x-logging-default: &logging-default
 services:
 
   app:
+    <<: *worker-common
     container_name: streamlit_app
     build:
       context: .
@@ -40,17 +48,7 @@ services:
     ports:
       - "8501"
       - "8000"
-    environment:
-      <<: *worker-env
-    env_file:
-      - .env
     logging: *logging-default
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     cpus: 1
     mem_limit: 1G
     healthcheck:
@@ -60,17 +58,10 @@ services:
       retries: 5
 
   celery_scans:
+    <<: *worker-common
     container_name: ccauditor_worker_scans
     build: *worker-build
-    command: /app/scripts/start_worker.sh -Q scans --concurrency=4
-    env_file:
-      - .env
-    environment:
-      <<: *worker-env
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+    command: celery -A app.celery_app worker -Q scans --concurrency=3 --loglevel=info
     logging: *logging-default
     cpus: 2
     mem_limit: 2G
@@ -78,17 +69,10 @@ services:
 
 
   celery_ai:
+    <<: *worker-common
     container_name: ccauditor_worker_ai
     build: *worker-build
-    command: /app/scripts/start_worker.sh -Q ai --concurrency=4
-    env_file:
-      - .env
-    environment:
-      <<: *worker-env
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+    command: /app/scripts/start_worker.sh -Q ai --concurrency=2
     logging: *logging-default
     cpus: 2
     mem_limit: 2G
@@ -96,34 +80,20 @@ services:
 
 
   celery_hygiene:
+    <<: *worker-common
     container_name: ccauditor_worker_hygiene
     build: *worker-build
     command: /app/scripts/start_worker.sh -Q hygiene --concurrency=2
-    env_file:
-      - .env
-    environment:
-      <<: *worker-env
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
     logging: *logging-default
     cpus: 1
     mem_limit: 1G
     healthcheck: *worker-healthcheck
 
   celery_scheduler:
+    <<: *worker-common
     container_name: ccauditor_scheduler
     build: *worker-build
     command: /app/scripts/start_scheduler.sh
-    env_file:
-      - .env
-    environment:
-      <<: *worker-env
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
     logging: *logging-default
     cpus: 0.5
     mem_limit: 512M
@@ -170,7 +140,6 @@ services:
       -c checkpoint_completion_target=0.9
       -c wal_buffers=16MB
       -c synchronous_commit=off
-      
     logging: *logging-default
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ccauditor"]

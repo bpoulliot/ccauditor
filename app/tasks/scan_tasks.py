@@ -1,5 +1,7 @@
 import time
 
+from sqlalchemy.exc import IntegrityError
+
 from app.analytics.department import extract_department
 from app.canvas.client import (
     get_courses_by_term,
@@ -10,7 +12,7 @@ from app.canvas.course_prioritizer import prioritize_courses
 from app.celery_app import celery_app
 from app.config.settings import settings
 from app.database.db import SessionLocal
-from app.database.models import CourseScan, ScanJob
+from app.database.models import Course, CourseScan, ScanJob, Term
 from app.observability.metrics import (
     ACCESSIBILITY_ISSUES_TOTAL,
     BROKEN_LINKS_TOTAL,
@@ -28,17 +30,14 @@ from app.progress.redis_progress import (
     increment_failed,
     init_scan_progress,
     is_cancelled,
-    get_progress,
-    clear_progress,
-    clear_cancel,
 )
 from app.progress.scan_lock import acquire_term_lock, release_term_lock
 from app.scanner.course_scanner import scan_course
 
 
-# --------------------------------------------------
-# Scan Term Task
-# --------------------------------------------------
+# ---------------------------------------------------------
+# TERM SCAN TASK
+# ---------------------------------------------------------
 
 @celery_app.task(bind=True)
 def scan_term(self, term_id=None, canvas_course_id=None, sis_course_id=None):
@@ -60,50 +59,113 @@ def scan_term(self, term_id=None, canvas_course_id=None, sis_course_id=None):
 
         job_id = str(job.id)
 
+        # --------------------------------------------------
+        # Ensure term exists in DB
+        # --------------------------------------------------
+
+        if term_id:
+
+            existing_term = db.query(Term).get(term_id)
+
+            if not existing_term:
+                db.add(Term(id=term_id))
+                db.commit()
+
+        # --------------------------------------------------
+        # Determine courses
+        # --------------------------------------------------
+
         courses = []
 
         if canvas_course_id:
+
             course = get_course_by_canvas_id(canvas_course_id)
             courses = [course]
 
         elif sis_course_id:
+
             course = get_course_by_sis_id(sis_course_id)
             courses = [course]
 
         elif term_id:
+
             canvas_courses = get_courses_by_term(term_id)
-            courses = [c for c in canvas_courses if c.enrollment_term_id == term_id]
+
+            for c in canvas_courses:
+
+                courses.append(
+                    {
+                        "id": c.id,
+                        "name": getattr(c, "name", ""),
+                        "sis_id": getattr(c, "sis_course_id", None),
+                        "term_id": getattr(c, "enrollment_term_id", term_id),
+                    }
+                )
 
         else:
+
             raise ValueError("No scan target specified")
 
         courses = prioritize_courses(courses)
 
         init_scan_progress(job_id, len(courses))
 
-        for course in courses:
+        # --------------------------------------------------
+        # Store courses in DB
+        # --------------------------------------------------
 
-            if is_cancelled(job_id):
-                break
+        for c in courses:
+
+            existing = db.query(Course).get(c["id"])
+
+            if not existing:
+
+                try:
+
+                    db.add(
+                        Course(
+                            id=c["id"],
+                            name=c["name"],
+                            sis_id=c["sis_id"],
+                            term_id=c["term_id"],
+                        )
+                    )
+
+                except IntegrityError:
+                    db.rollback()
+
+        db.commit()
+
+        # --------------------------------------------------
+        # Dispatch Celery scan tasks
+        # --------------------------------------------------
+
+        for c in courses:
 
             scan_course_task.apply_async(
-                args=[course.id, job_id],
+                args=[c, job_id],
                 queue="scans",
             )
+
+            time.sleep(0.05)
+
+        job.status = "queued"
+        db.commit()
 
         return job_id
 
     finally:
+
         release_term_lock(lock_id)
         db.close()
 
 
-# --------------------------------------------------
-# Scan Course Task
-# --------------------------------------------------
+# ---------------------------------------------------------
+# COURSE SCAN TASK
+# ---------------------------------------------------------
 
 @celery_app.task(bind=True, max_retries=3)
-def scan_course_task(self, course_id, job_id):
+def scan_course_task(self, course_payload, job_id):
 
     start_time = time.time()
 
@@ -111,9 +173,15 @@ def scan_course_task(self, course_id, job_id):
 
     try:
 
-        # stop immediately if cancelled
         if is_cancelled(job_id):
+            print(f"Scan job {job_id} cancelled")
             return
+
+        course_id = course_payload["id"]
+
+        # --------------------------------------------------
+        # Incremental scan skip
+        # --------------------------------------------------
 
         if settings.SCAN_INCREMENTAL_ENABLED:
 
@@ -124,21 +192,26 @@ def scan_course_task(self, course_id, job_id):
                 increment_completed(job_id)
                 return
 
-        result = scan_course(course_id)
+        # --------------------------------------------------
+        # Run scanner
+        # --------------------------------------------------
 
-        # check cancel again after scan
-        if is_cancelled(job_id):
-            return
+        result = scan_course(course_payload)
 
         risk_score = result.get("risk_score", 0)
 
+        # --------------------------------------------------
+        # Metrics
+        # --------------------------------------------------
+
         COURSE_SCANS_TOTAL.inc()
-        COURSE_RISK_SCORE.labels(course_id=course_id).set(risk_score)
+
+        COURSE_RISK_SCORE.observe(risk_score)
 
         duration = time.time() - start_time
         SCAN_DURATION_SECONDS.observe(duration)
 
-        department = extract_department(result.get("course_name", ""))
+        department = extract_department(course_payload.get("name", ""))
 
         DEPARTMENT_RISK_SCORE.labels(department=department).set(risk_score)
 
@@ -157,6 +230,10 @@ def scan_course_task(self, course_id, job_id):
             result["caption_workload"]["remediation_hours"]
         )
 
+        # --------------------------------------------------
+        # Save scan result
+        # --------------------------------------------------
+
         scan_record = CourseScan(
             course_id=course_id,
             risk_score=risk_score,
@@ -167,44 +244,7 @@ def scan_course_task(self, course_id, job_id):
 
         increment_completed(job_id)
 
-        # --------------------------------------------------
-        # Safe Job Completion Check
-        # --------------------------------------------------
-
-        progress = get_progress(job_id)
-
-        if progress:
-
-            finished = progress["completed"] + progress["failed"]
-
-            if finished >= progress["total"]:
-
-                job = db.get(ScanJob, job_id)
-
-                if job and job.status not in ["completed", "cancelled"]:
-
-                    job.status = "completed"
-                    db.commit()
-
-                # cleanup Redis progress entry
-                clear_progress(job_id)
-
-        progress = get_progress(job_id)
-
-        if progress and (progress["completed"] + progress["failed"]) >= progress["total"]:
-
-            job = db.get(ScanJob, job_id)
-
-            if job:
-                job.status = "completed"
-                db.commit()
-
-            clear_progress(job_id)
-            clear_cancel(job_id)
-
     except Exception as exc:
-
-        db.rollback()
 
         SCAN_FAILURES_TOTAL.inc()
 

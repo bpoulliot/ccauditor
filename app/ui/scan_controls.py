@@ -50,8 +50,9 @@ def show_scan_controls():
             sis_course_id = st.text_input("SIS Course ID")
 
         if st.button("Start Scan"):
+            print("START SCAN BUTTON CLICKED")
 
-            scan_term.apply_async(
+            task = scan_term.apply_async(
                 kwargs={
                     "term_id": term_id,
                     "canvas_course_id": canvas_course_id,
@@ -60,7 +61,9 @@ def show_scan_controls():
                 queue="scans",
             )
 
-            st.success("Scan task submitted")
+            st.session_state["current_scan_job"] = task.id
+
+            st.success(f"Scan task submitted: {task.id}")
 
         st.divider()
 

@@ -1,6 +1,5 @@
 import os
 from typing import Optional
-
 from dotenv import load_dotenv
 
 from app.config.persistent_settings import get_setting
@@ -32,7 +31,15 @@ class Settings:
             return []
         return [int(x.strip()) for x in self.EXCLUDED_TERM_IDS.split(",") if x.strip()]
     
+    # --------------------------------------------------
+    # Video API Keys
+    # --------------------------------------------------
 
+    PANOPTO_CID: str = os.getenv("PANOPTO_CID")
+    PANOPTO_SECRET: str = os.getenv("PANOPTO_SECRET")
+    VIMEO_API_TOKEN: str = os.getenv("VIMEO_API_TOKEN")
+    PANOPTO_BASE: str = os.getenv("PANOPTO_BASE")
+    
     # --------------------------------------------------
     # Infrastructure
     # --------------------------------------------------
@@ -93,6 +100,9 @@ class Settings:
     )
 
     SCAN_RETRY_DELAY: int = int(os.getenv("SCAN_RETRY_DELAY", "60"))
+
+    DEFAULT_MAX_FILE_SCAN_MB: int = os.getenv("DEFAULT_MAX_FILE_SCAN_MB")
+    DEFAULT_SCAN_TIMEOUT_MINUTES: int = os.getenv("DEFAULT_SCAN_TIMEOUT_MINUTES")
 
     # --------------------------------------------------
     # Validation

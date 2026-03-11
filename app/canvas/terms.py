@@ -1,13 +1,20 @@
 from canvasapi import Canvas
+import streamlit as st
+
 from app.config.settings import settings
+from app.canvas.client import get_canvas, canvas_retry
 
-
+@st.cache_data(ttl=3600)
 def get_enrollment_terms():
 
     canvas = Canvas(settings.CANVAS_BASE_URL, settings.CANVAS_API_TOKEN)
     account = canvas.get_account(1)
 
-    terms = account.get_enrollment_terms()
+    terms = list(
+        canvas_retry(
+            lambda: account.get_enrollment_terms(per_page=100)
+        )       
+    )
 
     results = []
 
@@ -25,6 +32,8 @@ def get_enrollment_terms():
         })
 
     # sort descending by SIS ID
-    results.sort(key=lambda x: x["sis_id"], reverse=True)
-
-    return results
+    return sorted(
+        results,
+        key=lambda t: getattr(t, "sis_term_id", "") or "",
+        reverse=True,
+    )

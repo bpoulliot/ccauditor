@@ -19,3 +19,4 @@ numpy
 prometheus-client
 grafana
 PyPDF2
+youtube-transcript-api

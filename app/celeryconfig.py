@@ -1,4 +1,5 @@
 from app.config.settings import settings
+from kombu import Exchange, Queue
 
 # Celery worker lifecycle
 worker_max_tasks_per_child = 100
@@ -14,11 +15,17 @@ task_soft_time_limit = settings.CELERY_TASK_SOFT_TIME_LIMIT
 worker_max_tasks_per_child=settings.CELERY_WORKER_MAX_TASKS_PER_CHILD
 
 # Optional routing example
-task_routes={
-    "app.tasks.scan_tasks.*": {"queue": "scans"},
-    "app.ai.*": {"queue": "ai"},
-    "app.hygiene.*": {"queue": "hygiene"},
+task_routes = {
+    "app.tasks.scan_tasks.scan_term": {"queue": "scans"},
+    "app.tasks.scan_tasks.scan_course_task": {"queue": "scans"},
+    "app.observability.tasks.update_queue_metrics_task": {"queue": "hygiene"},
 }
+
+task_queues = (
+    Queue("scans", Exchange("scans"), routing_key="scans"),
+    Queue("ai", Exchange("ai"), routing_key="ai"),
+    Queue("hygiene", Exchange("hygiene"), routing_key="hygiene"),
+)
 
 # Serialization
 task_serializer="json"

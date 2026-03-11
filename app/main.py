@@ -2,12 +2,9 @@ import streamlit as st
 
 from app.auth.auth import ensure_bootstrap_admin
 from app.auth.login import show_login
-
 from app.security.env_validation import validate_environment
 from app.security.session_manager import validate_session
-
 from app.observability.metrics_endpoint import start_metrics_server
-
 from app.ui.caption_dashboard import show_caption_dashboard
 from app.ui.dashboard import show_dashboard
 from app.ui.hygiene_dashboard import show_hygiene_dashboard
@@ -16,10 +13,8 @@ from app.ui.scan_controls import show_scan_controls
 from app.ui.settings_page import show_settings
 from app.ui.user_management import show_user_management
 from app.ui.worker_dashboard import show_worker_dashboard
-
 from app.config.persistent_settings import get_setting
 from app.config.settings import settings
-
 from app.database.init_db import init_db
 
 settings.validate()
