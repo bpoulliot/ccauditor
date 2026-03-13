@@ -121,6 +121,16 @@ FOD_MISSING_CAPTIONS_TOTAL = Counter(
     "Films On Demand videos missing captions"
 )
 
+YOUTUBE_VIDEOS_TOTAL = Counter(
+    "ccauditor_youtube_videos_total",
+    "Total YouTube videos detected",
+)
+
+YOUTUBE_MISSING_CAPTIONS_TOTAL = Counter(
+    "ccauditor_youtube_missing_captions_total",
+    "YouTube videos missing captions",
+)
+
 # --------------------------------------------------
 # Content Hygiene Metrics
 # --------------------------------------------------

@@ -1,18 +1,22 @@
 import time
-
 from sqlalchemy.exc import IntegrityError
 
+from app.config.runtime_config import get_scan_timeout_minutes
 from app.analytics.department import extract_department
-from app.canvas.client import (
-    get_courses_by_term,
-    get_course_by_canvas_id,
-    get_course_by_sis_id,
-)
+from app.scanner.course_scanner import scan_course
+from app.scanner.incremental_scanner import should_scan_course
 from app.canvas.course_prioritizer import prioritize_courses
 from app.celery_app import celery_app
 from app.config.settings import settings
 from app.database.db import SessionLocal
 from app.database.models import Course, CourseScan, ScanJob, Term
+from app.progress.scan_lock import acquire_term_lock, release_term_lock
+from app.progress.redis_progress import (
+    increment_completed,
+    increment_failed,
+    init_scan_progress,
+    is_cancelled,
+)
 from app.observability.metrics import (
     ACCESSIBILITY_ISSUES_TOTAL,
     BROKEN_LINKS_TOTAL,
@@ -24,15 +28,22 @@ from app.observability.metrics import (
     SCAN_DURATION_SECONDS,
     SCAN_FAILURES_TOTAL,
 )
-from app.optimization.incremental_scanner import should_scan_course
-from app.progress.redis_progress import (
-    increment_completed,
-    increment_failed,
-    init_scan_progress,
-    is_cancelled,
+from app.canvas.client import (
+    get_courses_by_term,
+    get_course_by_canvas_id,
+    get_course_by_sis_id,
 )
-from app.progress.scan_lock import acquire_term_lock, release_term_lock
-from app.scanner.course_scanner import scan_course
+
+from app.canvas.content_export import (
+    start_course_export,
+    wait_for_export,
+    download_export,
+    extract_export,
+    scan_export_directory,
+    scan_export_html,
+    scan_export_files
+)
+
 
 
 # ---------------------------------------------------------
@@ -250,6 +261,26 @@ def scan_course_task(self, course_payload, job_id):
 
         increment_failed(job_id)
 
+        # Stop retrying after max_retries
+        if self.request.retries >= self.max_retries:
+
+            print(f"[SCAN FAILURE] Course {course_id} failed after max retries: {exc}")
+
+            scan_record = CourseScan(
+                course_id=course_id,
+                risk_score=0,
+                error=str(exc)
+            )
+
+            db.add(scan_record)
+            db.commit()
+
+            return {
+                "course_id": course_id,
+                "status": "failed",
+                "error": str(exc),
+            }
+
         raise self.retry(
             exc=exc,
             countdown=settings.SCAN_RETRY_DELAY,
@@ -258,3 +289,6 @@ def scan_course_task(self, course_payload, job_id):
     finally:
 
         db.close()
+
+def queue_course_scan(course_id):
+    scan_course_task.delay(course_id)

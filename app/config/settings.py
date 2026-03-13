@@ -26,6 +26,9 @@ class Settings:
     # Canvas term exclusions (comma separated IDs)
     EXCLUDED_TERM_IDS = os.getenv("EXCLUDED_TERM_IDS", "")
 
+    # Canvas account ID to get
+    ACCOUNT_ID = str = os.getenv("ACCOUNT_ID")
+
     def excluded_term_ids(self):
         if not self.EXCLUDED_TERM_IDS:
             return []
@@ -35,8 +38,9 @@ class Settings:
     # Video API Keys
     # --------------------------------------------------
 
-    PANOPTO_CID: str = os.getenv("PANOPTO_CID")
-    PANOPTO_SECRET: str = os.getenv("PANOPTO_SECRET")
+    PANOPTO_SERVER = os.getenv("PANOPTO_SERVER")
+    CLIENT_ID = os.getenv("PANOPTO_CLIENT_ID")
+    CLIENT_SECRET = os.getenv("PANOPTO_CLIENT_SECRET")
     VIMEO_API_TOKEN: str = os.getenv("VIMEO_API_TOKEN")
     PANOPTO_BASE: str = os.getenv("PANOPTO_BASE")
     
@@ -52,21 +56,22 @@ class Settings:
     # --------------------------------------------------
 
     SESSION_TIMEOUT: int = int(os.getenv("SESSION_TIMEOUT", "3600"))
+    ST_AUTO_REFRESH: int = int(os.getenv("ST_AUTO_REFRESH", "10"))
 
     # --------------------------------------------------
     # Logging
     # --------------------------------------------------
 
-    LOG_DESTINATION: str = os.getenv("LOG_DESTINATION", "stdout")
+    LOG_DESTINATION: str = "stdout"
 
     # --------------------------------------------------
     # AI enhancement configuration
     # --------------------------------------------------
 
-    AI_ENABLED: bool = os.getenv("AI_ENABLED", "true").lower() == "true"
+    AI_ENABLED: bool = os.getenv("AI_ENABLED", "false").lower() == "true"
     AI_PROVIDER = os.getenv("AI_PROVIDER", "ollama")
-    AI_MODEL = os.getenv("AI_MODEL", "llama3")
-    VISION_MODEL = os.getenv("VISION_MODEL", "llava")
+    AI_MODEL = os.getenv("AI_MODEL", "llama3.1:8b")
+    VISION_MODEL = os.getenv("VISION_MODEL", "llava:13b")
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 
     OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")

@@ -3,10 +3,8 @@ from functools import lru_cache
 from app.config.settings import settings
 from app.config.persistent_settings import get_setting
 
-
 DEFAULT_SCAN_TIMEOUT_MINUTES = 15
 DEFAULT_MAX_FILE_SCAN_MB = 50
-
 
 @lru_cache(maxsize=1)
 def get_scan_timeout_minutes():
@@ -23,7 +21,6 @@ def get_scan_timeout_minutes():
         )
     except Exception:
         return DEFAULT_SCAN_TIMEOUT_MINUTES
-
 
 @lru_cache(maxsize=1)
 def get_max_file_scan_mb():

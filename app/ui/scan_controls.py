@@ -1,5 +1,4 @@
 import time
-
 import streamlit as st
 
 from app.database.db import SessionLocal
@@ -8,6 +7,7 @@ from app.progress.progress_service import calculate_progress
 from app.progress.redis_progress import set_cancelled
 from app.tasks.scan_tasks import scan_term
 from app.ui.components.term_selector import select_enrollment_term
+from app.config.settings.settings import AUTO_REFRESH
 
 
 def show_scan_controls():
@@ -50,7 +50,6 @@ def show_scan_controls():
             sis_course_id = st.text_input("SIS Course ID")
 
         if st.button("Start Scan"):
-            print("START SCAN BUTTON CLICKED")
 
             task = scan_term.apply_async(
                 kwargs={
@@ -64,6 +63,8 @@ def show_scan_controls():
             st.session_state["current_scan_job"] = task.id
 
             st.success(f"Scan task submitted: {task.id}")
+
+            st.rerun()
 
         st.divider()
 
@@ -169,5 +170,5 @@ def show_scan_controls():
     ).count()
 
     if jobs_running > 0:
-        time.sleep(3)
+        time.sleep(10)
         st.rerun()
